@@ -218,7 +218,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _liveWords = '';
     _listening = true;
     if (mounted) setState(() {});
-    await _stt.listen(onResult: (stt.SpeechRecognitionResult result) {
+    await _stt.listen(onResult: (SpeechRecognitionResult result) {
       if (result.finalResult) {
         final words = result.recognizedWords;
         if (words.isNotEmpty) {

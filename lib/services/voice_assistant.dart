@@ -251,7 +251,7 @@ class VoiceAssistant {
 
   Future<void> _initNative() async {
     if (!GuardChannel.instance.isAndroid) return;
-    await _nativeChannel.setMethodCallHandler((call) async {
+    _nativeChannel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'status':
           final ok = (call.arguments as Map?)?['ok'] as bool? ?? false;
@@ -333,7 +333,7 @@ class VoiceAssistant {
       try {
         await _stt.listen(
           onResult: _onWakeResult,
-          config:
+          listenOptions:
               stt.SpeechListenOptions(partialResults: true, cancelOnError: true),
         );
       } catch (_) {}
@@ -374,7 +374,7 @@ class VoiceAssistant {
     }
   }
 
-  void _onWakeResult(stt.SpeechRecognitionResult result) {
+  void _onWakeResult(SpeechRecognitionResult result) {
     if (_liveChat) return; // the live session has its own callback
     final words = result.recognizedWords.trim();
     if (_needCapture) {
@@ -633,14 +633,14 @@ class VoiceAssistant {
       transcript.value = '';
       try {
         await _stt.listen(
-          onResult: (stt.SpeechRecognitionResult r) {
+          onResult: (SpeechRecognitionResult r) {
             if (!_liveChat) return;
             transcript.value = r.recognizedWords;
             if (r.finalResult && r.recognizedWords.trim().isNotEmpty) {
               _liveUtterance = r.recognizedWords.trim();
             }
           },
-          config:
+          listenOptions:
               stt.SpeechListenOptions(partialResults: true, cancelOnError: true),
         );
       } catch (_) {}

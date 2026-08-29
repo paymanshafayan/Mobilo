@@ -21,14 +21,14 @@ void main() {
     });
   });
 
-  test('AiClient._deltaContent is null-safe', () {
+  test('AiClient.deltaContent is null-safe', () {
     expect(
-      AiClient._deltaContent(
+      AiClient.deltaContent(
           '{"choices":[{"delta":{"content":"سلام"}}]}'),
       'سلام',
     );
-    expect(AiClient._deltaContent('{"choices":[]}'), isNull);
-    expect(AiClient._deltaContent('not-json'), isNull);
+    expect(AiClient.deltaContent('{"choices":[]}'), isNull);
+    expect(AiClient.deltaContent('not-json'), isNull);
   });
 
   group('extractFileUrls', () {

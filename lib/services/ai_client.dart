@@ -132,7 +132,7 @@ class AiClient {
             } catch (_) {}
             try {
               final socket = await response.detachSocket();
-              await socket.destroy();
+              socket.destroy();
             } catch (_) {}
             if (!controller.isClosed) await controller.close();
           }));
