@@ -253,8 +253,8 @@ class BatteryGuardService : Service() {
         val percent = if (level >= 0 && scale > 0) level * 100 / scale else -1
 
         val plugged = sticky.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
-        val charging =
-            plugged != 0 && plugged != BatteryManager.BATTERY_PLUGGED_UNKNOWN
+        // 0 = not plugged; AC=1, USB=2, wireless=4 (bitmask).
+        val charging = plugged != 0
         return Pair(percent, charging)
     }
 
@@ -370,7 +370,7 @@ class BatteryGuardService : Service() {
             .setContentTitle("⚠️ باتری رو به اتمام است")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setCategory(NotificationCompat.CATEGORY_ALERT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -389,7 +389,7 @@ class BatteryGuardService : Service() {
             .setContentTitle("🔋 باتری شارژ کامل شد")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setCategory(NotificationCompat.CATEGORY_ALERT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -450,5 +450,5 @@ class BatteryGuardService : Service() {
     /** Converts ASCII digits to Persian digits. */
     private fun fa(value: Int): String = value.toString().map { c ->
         if (c in '0'..'9') ('۰' + (c - '0')) else c
-    }
+    }.joinToString("")
 }
