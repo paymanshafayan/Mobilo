@@ -1,5 +1,4 @@
 import Flutter
-import FlutterPlugin
 import UIKit
 import UserNotifications
 

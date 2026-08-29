@@ -35,7 +35,7 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 
 ## ۳. نقشهٔ کد — «چیزی که می‌خواهی را کجا پیدا کنم؟»
 
-> ⚠️ **نسخهٔ پلاگین‌ها:** `battery_plus` **دقیقاً** `6.2.3` pin شده (نه caret) چون کد `battery_service.dart` با API این نسخه نوشته شده (استریم level حذف شده، `batteryLevel` non-nullable شده، `BatteryState.notCharging` به `connectedNotCharging` تغییر نام داده). اگر خواستی آپدیت کنی، اول سورس نسخهٔ جدید را بخوان و `battery_service.dart` را adapt کن. سورس رسمی: `fluttercommunity/plus_plugins` (پکیج `packages/battery_plus`).
+> ⚠️ **نسخهٔ پلاگین‌ها:** `battery_plus` **دقیقاً** `7.1.1` pin شده (نه caret) چون کد `battery_service.dart` با API این نسخه نوشته شده (استریم level حذف شده، `batteryLevel` non-nullable شده، `BatteryState.notCharging` به `connectedNotCharging` تغییر نام داده). نسخهٔ 7.x برای build با AGP 9 ضروری است: در AGP 9 پلاگین Kotlin Gradle Plugin را apply نمی‌کند (مقرض Built-in Kotlin). API Dart در 7.x با 6.2.x یکسان است. اگر خواستی آپدیت کنی، اول سورس نسخهٔ جدید را بخوان. سورس رسمی: `fluttercommunity/plus_plugins` (پکیج `packages/battery_plus`).
 
 
 | اگر بخواهی... | برو به... |
@@ -186,7 +186,7 @@ flutter build ipa --release        # خروجی: build/ios/ipa/Runner.ipa
 | محدودیت پس‌زمینهٔ iOS | inherent (سیاست اپل) | مستندسازی شده؛ در UI و README |
 | ۶ ساعت dataSync در Android 16 | متوسط | watchdog خودترمیم |
 | بسته شدن سرویس توسط OEM battery savers | متوسط | watchdog + دکمهٔ شروع در UI |
-| هشدار KGP در build (battery_plus) | کم (فعلاً فقط WARNING) | در Flutter 3.47 build شکست نمی‌خورد؛ وقتی Flutter «Built-in Kotlin» را اجباری کرد، battery_plus نسخهٔ جدیدتر (با Built-in Kotlin) لازم می‌شود — همان فرآیند pin/آپدیت بخش ۳ |
+| `flutter_local_notifications` desugaring می‌خواهد | رفع‌شده | `isCoreLibraryDesugaringEnabled = true` + `coreLibraryDesugaring(desugar_jdk_libs)` در `android/app/build.gradle.kts` — اگر AGP نسخهٔ بالاتر خواست، فقط عدد نسخهٔ desugar_jdk_libs را بالا ببر |
 | `flutter_local_notifications` SPM ندارد | کم (فعلاً فقط WARNING) | در 3.47 build فقط هشدار می‌دهد و آن پلاگین با CocoaPods build می‌شود؛ در نسخه‌های آیندهٔ Flutter خطای سفت می‌شود — باید منتظر آپدیت پلاگین بمانیم
 | تغییر آیکون‌ها در نسخه‌های Flutter | کم | `Icons.battery_horiz` در 3.47 حذف شده و با `battery_std` جایگزین شد؛ اگر خطای `Member not found: Icons.x` دیدی، `packages/flutter/lib/src/material/icons.dart` در Flutter خودت را چک کن |
 | تغییر API پلاگین‌ها در آپدیت‌های major | کم | caret-pin شده؛ در build شکست می‌خورد نه در runtime |
