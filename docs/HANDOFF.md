@@ -107,7 +107,53 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
   - key store بساز: `keytool -genkey -v -keystore ~/mobilo-upload.keystore -alias mobilo -keyalg RSA -keysize 2048 -validity 10000`
   - `android/key.properties` بساز (داخل .gitignore است) و بلوک `signingConfigs` در `build.gradle.kts` فعال کن.
 - **IPA:** `flutter build ipa --release` با certificate فعال.
-- **GitHub Actions:** workflow `.github/workflows/build-apk-ipa.yml` خروجی APK (ubuntu) و IPA بدون امضا (macos) را به‌عنوان artifact تولید می‌کند (در ریپو نگهداری می‌شود).
+- **GitHub Actions:** workflow `.github/workflows/build-apk-ipa.yml` دو job دارد:
+  - `build-apk` (ubuntu): خروجی `app-release.apk`
+  - `build-ipa` (macos): خروجی **IPA بدون امضا** + **xcarchive**
+
+  > ⚠️ نکتهٔ مهم (Flutter 3.47): `flutter build ipa --no-codesign` دیگر **IPA تولید نمی‌کند** (فقط xcarchive). به‌همین‌دلیل workflow مستقیماً `xcodebuild archive` + `xcodebuild -exportArchive` با `CODE_SIGNING_ALLOWED=NO` اجرا می‌کند — نیازی به Development Team ندارد. IPA خروجی **بدون امضا** است.
+
+### ساخت IPA امضادار (برای نصب روی دستگاه / اپ استور)
+
+**روش محلی (ساده‌ترین):**
+```bash
+# روی مک خودت، با Xcode لاگین به Apple ID
+# 1) pbxproj: ios/Runner.xcodeproj → Runner → Signing & Capabilities → Development Team را انتخاب کن
+flutter build ipa --release        # خروجی: build/ios/ipa/Runner.ipa
+```
+
+**روش CI (با secrets):** در GitHub → Settings → Secrets این ۳ مورد را بساز:
+- `APPLE_CERTIFICATE` — محتوای base64 فایل `.p12`
+- `APPLE_CERTIFICATE_PASSWORD` — رمز همان p12
+- `APPLE_PROVISIONING_PROFILE` — محتوای base64 فایل `.mobileprovision`
+
+و این job را به workflow اضافه کن (قبل از هر build، `DEVELOPMENT_TEAM` (10 رقمی) را هم در pbxproj ست کن):
+```yaml
+  build-ipa-signed:
+    name: iOS IPA (signed)
+    if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter pub get
+      - uses: apple-actions/import-codesign-certs-action@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          keychain-name: build-keys
+          keychain-password: build-keys-pass
+      - uses: apple-actions/import-codesign-mobile-provision-profile-action@v3
+        with:
+          mobileprovision-profile-base64: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+      - run: flutter build ipa --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobilo-ipa-signed
+          path: build/ios/ipa/Runner.ipa
+          if-no-files-found: error
+```
 
 ## ۷. TODO / ایده‌های بعدی (به ترتیح اولویت)
 
@@ -141,6 +187,7 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 | ۶ ساعت dataSync در Android 16 | متوسط | watchdog خودترمیم |
 | بسته شدن سرویس توسط OEM battery savers | متوسط | watchdog + دکمهٔ شروع در UI |
 | هشدار KGP در build (battery_plus) | کم (فعلاً فقط WARNING) | در Flutter 3.47 build شکست نمی‌خورد؛ وقتی Flutter «Built-in Kotlin» را اجباری کرد، battery_plus نسخهٔ جدیدتر (با Built-in Kotlin) لازم می‌شود — همان فرآیند pin/آپدیت بخش ۳ |
+| `flutter_local_notifications` SPM ندارد | کم (فعلاً فقط WARNING) | در 3.47 build فقط هشدار می‌دهد و آن پلاگین با CocoaPods build می‌شود؛ در نسخه‌های آیندهٔ Flutter خطای سفت می‌شود — باید منتظر آپدیت پلاگین بمانیم
 | تغییر آیکون‌ها در نسخه‌های Flutter | کم | `Icons.battery_horiz` در 3.47 حذف شده و با `battery_std` جایگزین شد؛ اگر خطای `Member not found: Icons.x` دیدی، `packages/flutter/lib/src/material/icons.dart` در Flutter خودت را چک کن |
 | تغییر API پلاگین‌ها در آپدیت‌های major | کم | caret-pin شده؛ در build شکست می‌خورد نه در runtime |
 
