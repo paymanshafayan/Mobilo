@@ -54,6 +54,9 @@ dependencies:
   # Open citation links in the browser.
   url_launcher: 6.3.2
 
+  # Contacts for Mobina's voice commands ("مبینا شماره مامان را بگیر").
+  flutter_contacts: 2.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

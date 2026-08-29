@@ -58,6 +58,11 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 | **کلاینت API (SSE + جستجو)** | `lib/services/ai_client.dart` — `AiClient` / `SseLineParser` / `WebSearchService` / `chatSystemPrompt` |
 | **دانلود فایل** | `lib/services/download_service.dart` — `extractFileUrls` / `DownloadService` |
 | **کلید API در build** | `String.fromEnvironment('GROQ_API_KEY')` — در CI: `--dart-define=GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}` (workflow)؛ محلی: `flutter run --dart-define=GROQ_API_KEY=...` |
+| **مبینا (مغز دستیار صوتی)** | `lib/services/voice_assistant.dart` — حلقهٔ wake، `_handleCommand`، `_liveLoop`، `_speak` (gate کامل TTS) |
+| **مبینا (گوش‌دادن پس‌زمینهٔ اندروید)** | `android/.../VoiceAssistantService.kt` — microphone FGS + SpeechRecognizer + pendingCommand |
+| **مبینا (گوشهٔ گفتگوی زنده)** | `lib/ui/voice_chat_sheet.dart` |
+| **مبینا (مخاطبین + شماره‌گیری)** | `lib/services/contacts_service.dart` — `lookup`/`normalizeName` (تست‌شده) + `dial` |
+| **تنظیمات مبینا** | `lib/ui/settings_screen.dart` — کارت «دستیار صوتی مبینا» (wake، TTS، مجوز مخاطبین) |
 
 ### ۴.۱ هوش مصنوعی — نکاتی که «چرا» مهم است
 
@@ -66,6 +71,15 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 - **چرا `/no_think` در system prompt چت؟** مدل Qwen3 پیش‌فرض «با استدلال داخلی» پاسخ می‌دهد (کندتر)؛ با `/no_think` رفتار چت سریع و عادی می‌شود. در مدل‌های بی‌اثر است.
 - **نکتهٔ امنیتی:** کلید `--dart-define` در داخل APK/IPA قابل استخراج است. secret ریپو `GROQ_API_KEY` فقط برای buildهای CI استفاده می‌شود؛ اگر کاربر کلید خودش را در Settings وارد کند، آن فقط روی دستگاه می‌ماند.
 - **افزودن بخش جدید به مدل‌ها** (مثلاً «خلاصه‌ساز»): یک section id در `AiSettings.defaults()` + یک `_SectionCard` در `ModelSettingsScreen` + سرویس‌تان همان `AiClient.complete/chatStream` را با آن section صدا بزند. همین.
+
+### ۴.۲ مبینا — نکاتی که «چرا» مهم است
+
+- **چرا FGS بومی برای wake word به‌جای پلاگین؟** هیچ پلاگین مستقری «گوش‌دادن دائمی با اپ بسته» را نمی‌دهد؛ `SpeechRecognizer` داخل سرویس پیش‌زمینه‌ی `microphone` استاندارد اندروید است (همان‌طور که اپ‌های assistant واقعی کار می‌کنند). FGS فقط بیداری/گرفتن دستور را می‌کند؛ اجرا با Dart است.
+- **چرا نیت‌ها JSON هستند (نه function-calling)؟** برای سازگاری با هر پرووایدر OpenAI-compatible: Groq با `response_format: json_object` (اسکیم حتماً باید در prompt باشد) و بقیه فقط با prompt + parser شل (`MobinaIntent.parse` — تست‌شده).
+- **چرا دو موتور گوش‌دادن؟** محدودیت iOS (هیچ پس‌زمینه‌ای) + FGS اندروید (همیشه). قانون: هر لحظه فقط یک شناسا؛ `suspendForChatMic`/`resumeAfterChatMic` و شروع/پایان گفتگوی زنده این تعادل را نگه می‌دارند.
+- **ریسک اصلی این بخش:** رفتار `SpeechRecognizer` روی OEMهای مختلف (برخی گوشی‌ها شناسا قوی ندارند) — در آن حالت خودکار به حلقهٔ Dart fallback می‌شود (status ok=false).
+- **محدودیت صادقانه:** در iOS wake word فقط با اپ باز؛ در اندروید، اگر کاربر اپ را از memory کشد (swipe)، FGS و همه‌چیز می‌میرد (بازگشت با boot receiver فقط برای سرویس باتری است — برای مبینا فعلاً تعریف نشده).
+
 
 ## ۴. درونیات — چیزهایی که «چرا» مهم است
 
@@ -202,6 +216,8 @@ flutter build ipa --release        # خروجی: build/ios/ipa/Runner.ipa
 | بسته شدن سرویس توسط OEM battery savers | متوسط | watchdog + دکمهٔ شروع در UI |
 | `flutter_local_notifications` desugaring می‌خواهد | رفع‌شده | `isCoreLibraryDesugaringEnabled = true` + `coreLibraryDesugaring(desugar_jdk_libs)` در `android/app/build.gradle.kts` — اگر AGP نسخهٔ بالاتر خواست، فقط عدد نسخهٔ desugar_jdk_libs را بالا ببر |
 | `flutter_local_notifications` SPM ندارد | کم (فعلاً فقط WARNING) | در 3.47 build فقط هشدار می‌دهد و آن پلاگین با CocoaPods build می‌شود؛ در نسخه‌های آیندهٔ Flutter خطای سفت می‌شود — باید منتظر آپدیت پلاگین بمانیم
+| VoiceAssistantService (Kotlin، SpeechRecognizer در FGS) | متوسط | روی OEMهای ضعیف‌تر شناسا ممکن است نداشتن → fallback خودکار به حلقهٔ Dart (status ok=false). تست دستگاهی حتماً
+| flutter_contacts 2.3.1 (API v2) | کم | دقیقاً pin؛ کد با API `FlutterContacts.*` نسخهٔ 2.x نوشته شده (نسخهٔ 1.x کلاس `Contacts` دارد — مختلط نکن)
 | بسته‌های AI (speech_to_text, flutter_tts, share_plus, url_launcher, path_provider, shared_preferences) | کم | همه دقیقاً pin شده‌اند و با API این نسخه‌ها نوشته شده‌اند؛ در جدول ۳ راهنمای pin/آپدیت مثل battery_plus صادق است
 | تغییر آیکون‌ها در نسخه‌های Flutter | کم | `Icons.battery_horiz` در 3.47 حذف شده و با `battery_std` جایگزین شد؛ اگر خطای `Member not found: Icons.x` دیدی، `packages/flutter/lib/src/material/icons.dart` در Flutter خودت را چک کن |
 | تغییر API پلاگین‌ها در آپدیت‌های major | کم | caret-pin شده؛ در build شکست می‌خورد نه در runtime |

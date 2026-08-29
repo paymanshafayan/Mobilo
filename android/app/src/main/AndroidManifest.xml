@@ -8,6 +8,10 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- AI assistant: voice input (speech to text) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Mobina: continuous wake-word listening in a foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Mobina: read the contact book for "call a contact" voice commands -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <application
         android:label="Mobilo"
@@ -41,6 +45,12 @@
             android:name=".BatteryGuardService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Mobina: wake-word listener (works with the app closed) -->
+        <service
+            android:name=".VoiceAssistantService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <!-- Restarts the guardian after a reboot -->
         <receiver

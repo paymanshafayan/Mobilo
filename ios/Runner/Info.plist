@@ -72,6 +72,9 @@
 	</array>
 	<!-- AI assistant: voice input (speech to text) -->
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mobilo به میکروفون دسترسی دارد تا صدای شما را در چت با دستیار هوشمند به متن تبدیل کند.</string>
+	<string>Mobilo به میکروفون دسترسی دارد تا صدای شما را در چت با مبینا، دستیار هوشمند، به متن تبدیل کند.</string>
+	<!-- Mobina: read the contact book for "call a contact" voice commands -->
+	<key>NSContactsUsageDescription</key>
+	<string>مبینا به مخاطبین دسترسی دارد تا با دستورات صوتی (مثلاً «شماره مامان را بگیر») شماره‌ها را پیدا کند.</string>
 </dict>
 </plist>

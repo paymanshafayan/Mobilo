@@ -10,6 +10,8 @@ import '../core/ai_settings.dart';
 import '../core/fa.dart';
 import '../services/ai_client.dart';
 import '../services/download_service.dart';
+import '../services/voice_assistant.dart';
+import 'voice_chat_sheet.dart';
 
 class _ChatMsg {
   _ChatMsg({required this.isUser, this.text = '', this.error = ''});
@@ -49,9 +51,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _ttsReady = false;
   int _speakingIndex = -1;
   String _liveWords = '';
-  String _modelLabel = 'Mobilo AI';
+  String _modelLabel = Strings.mobinaName;
   CancelToken? _token;
   StreamSubscription<String>? _sub;
+  StreamSubscription<MobinaEvent>? _mobinaSub;
 
   @override
   void initState() {
@@ -59,12 +62,29 @@ class _ChatScreenState extends State<ChatScreen> {
     _input.addListener(() {
       if (mounted) setState(() {});
     });
+    // Show Mobina's earlier voice conversation lines.
+    for (final e in VoiceAssistant.instance.recentEvents) {
+      _messages.add(_ChatMsg(isUser: e.isUser, text: e.text));
+    }
+    // Live events while Mobina executes voice commands.
+    _mobinaSub = VoiceAssistant.instance.events.listen((e) {
+      if (!mounted) return;
+      _messages.add(_ChatMsg(isUser: e.isUser, text: e.text));
+      setState(() {});
+      _scrollToBottom();
+    });
   }
 
   @override
   void dispose() {
     _stopGeneration();
     _sub?.cancel();
+    _mobinaSub?.cancel();
+    if (_listening) {
+      _stt.stop();
+      // The dictation session died with the screen: restore Mobina.
+      unawaited(VoiceAssistant.instance.resumeAfterChatMic());
+    }
     _input.dispose();
     _scroll.dispose();
     _tts.stop();
@@ -178,8 +198,12 @@ class _ChatScreenState extends State<ChatScreen> {
       await _stt.stop();
       _listening = false;
       if (mounted) setState(() {});
+      // Hand the microphone back to Mobina's wake listener.
+      unawaited(VoiceAssistant.instance.resumeAfterChatMic());
       return;
     }
+    // Give the microphone to the dictation session (Mobina pauses).
+    await VoiceAssistant.instance.suspendForChatMic();
     if (!_sttReady) {
       final ok = await _stt.initialize(onError: (e) {
         if (mounted) _snack(e.errorMsg);
@@ -292,6 +316,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            _mobinaStatusChip(),
             Expanded(
               child: _messages.isEmpty
                   ? _emptyState()
@@ -521,6 +546,43 @@ class _ChatScreenState extends State<ChatScreen> {
     ];
   }
 
+  /// Thin indicator while Mobina's wake-word listener is active.
+  Widget _mobinaStatusChip() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: VoiceAssistant.instance.wakeEnabled,
+      builder: (context, armed, _) {
+        if (!armed) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        return ValueListenableBuilder<MobinaPhase>(
+          valueListenable: VoiceAssistant.instance.phase,
+          builder: (context, phase, _) => Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+            color: scheme.primaryContainer.withValues(alpha: 0.35),
+            child: Row(
+              children: [
+                Icon(Icons.graphic_eq, size: 14, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    phase == MobinaPhase.capturing
+                        ? Strings.mobinaCapturingBar
+                        : Strings.mobinaWakeBar,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: scheme.onPrimaryContainer, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _inputBar(ColorScheme scheme) {
     return Container(
       margin: const EdgeInsets.all(10),
@@ -566,6 +628,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     : Strings.chatHint,
               ),
               onSubmitted: _busy ? null : (_) => _send(),
+            ),
+          ),
+          IconButton(
+            tooltip: Strings.voiceChat,
+            onPressed: _busy ? null : () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const VoiceChatSheet()),
+              );
+            },
+            icon: Icon(
+              Icons.record_voice_over,
+              color: scheme.primary,
             ),
           ),
           IconButton(

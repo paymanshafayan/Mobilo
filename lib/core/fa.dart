@@ -19,6 +19,21 @@ String faNum(int? value) {
       .join();
 }
 
+/// Converts the ASCII digits of any string (e.g. a phone number) to
+/// Persian digits, leaving everything else untouched.
+String faDigits(String value) {
+  return value
+      .split('')
+      .map((String c) {
+        final int code = c.codeUnitAt(0);
+        if (code >= 0x30 && code <= 0x39) {
+          return _persianDigits[code - 0x30];
+        }
+        return c;
+      })
+      .join();
+}
+
 /// All user-visible strings (Persian).
 class Strings {
   Strings._();
@@ -81,15 +96,16 @@ class Strings {
       'در iOS، محدودیت‌های اپل اجازه پایش دائمی در پس‌زمینه را نمی‌دهند؛ اپلیکیشن در حالت فعال به‌صورت زنده پایش می‌کند و در حالت پس‌زمینه بهترین تلاش (best-effort) با بیدار شدن‌های گاه‌به‌گاه سیستم را انجام می‌دهد.';
 
   // ------------------------------------------------------------------
-  // AI assistant (chat + web search + downloads)
+  // AI assistant (chat + web search + downloads) — Mobina (مبینا)
   // ------------------------------------------------------------------
-  static const String chatTitle = 'دستیار Mobilo';
+  static const String mobinaName = 'مبینا';
+  static const String chatTitle = 'مبینا';
   static const String chatHint = 'پرسش خود را بنویسید یا روی میکروفون بزنید…';
   static const String chatSearchHint = 'موضوع جستجو در وب را بنویسید…';
   static const String chatSearchMode = 'جستجوی وب';
-  static const String chatWelcome = 'چطور می‌توانم کمکتان کنم؟';
+  static const String chatWelcome = 'سلام! من مبینا هستم. چطور می‌توانم کمکتان کنم؟';
   static const String chatWelcomeSub =
-      'با دستیار هوشمند Mobilo می‌توانید با متن یا صدا گفتگو کنید، در وب جستجو کنید و فایل‌های مرتبط را دانلود کنید.';
+      'با مبینا می‌توانید با متن یا صدا گفتگو کنید، در وب جستجو کنید و فایل‌های مرتبط را دانلود کنید. کافی است بگویید «مبینا» تا بیدار شود!';
   static const String chatSend = 'ارسال';
   static const String chatStop = 'توقف';
   static const String chatNew = 'گفتگوی جدید';
@@ -133,4 +149,32 @@ class Strings {
       'تنظیمات، کلیدهای API و گفتگوها فقط روی همین دستگاه ذخیره می‌شوند. درخواست‌ها مستقیم از گوشی شما به پرووایدر انتخابی ارسال می‌شود و از سرورهای Mobilo عبور نمی‌کند.';
   static const String save = 'ذخیره';
   static const String cancel = 'انصراف';
+
+  // Mobina: voice assistant (live voice chat + wake word + commands).
+  static const String voiceChat = 'گفتگوی زندهٔ صوتی';
+  static const String voiceChatHint =
+      'بگویید و مبینا جواب می‌دهد؛ برای قطع دکمهٔ × را بزنید';
+  static const String voiceListening = 'مبینا گوش می‌دهد…';
+  static const String voiceCapturing = 'مبینا: بفرمایید، در حال شنیدن دستور';
+  static const String voiceThinking = 'در حال فکر کردن…';
+  static const String voiceSpeaking = 'در حال صحبت کردن…';
+  static const String voiceIdle = 'آماده';
+  static const String voiceListeningHint = 'هر لحظه می‌توانید صحبت کنید';
+  static const String mobinaWakeBar =
+      'مبینا گوش می‌دهد — برای بیدار کردنش بگویید «مبینا»';
+  static const String mobinaCapturingBar =
+      'مبینا: بفرمایید! در حال شنیدن دستور شماست…';
+  static const String settingsVoiceTitle = 'دستیار صوتی مبینا';
+  static const String settingsWakeWord = 'گوش دادن مداوم برای «مبینا»';
+  static const String settingsWakeWordSub =
+      'در اندروید حتی با اپ بسته هم کار می‌کند (سرویس پیش‌زمینه)؛ در iOS فقط وقتی اپ باز باشد';
+  static const String settingsVoiceTts = 'پاسخ‌های صوتی مبینا';
+  static const String settingsVoiceTtsSub =
+      'نتیجهٔ دستورات صوتی را مبینا با صدا اعلام می‌کند';
+  static const String settingsContacts = 'مجوز مخاطبین';
+  static const String settingsContactsGranted = 'فعال';
+  static const String settingsContactsDenied = 'غیرفعال — برای فعال‌کردن بزنید';
+  static const String settingsContactsNone = 'هنوز درخواست نشده — برای فعال‌کردن بزنید';
+  static const String settingsVoiceExample =
+      'مثال: «مبینا، شماره‌ی مامان را بگیر» — مبینا مخاطب را پیدا کرده و شماره‌گیری می‌کند';
 }

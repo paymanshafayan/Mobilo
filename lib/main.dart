@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'services/alert_service.dart';
 import 'services/guard_channel.dart';
+import 'services/voice_assistant.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +27,10 @@ Future<void> main() async {
   // (On Android the native service owns all alerts, so the Dart loop
   // only listens on iOS to avoid double notifications.)
   await AlertService.instance.start();
+
+  // Mobina: arm the always-listening voice assistant (wake word «مبینا»).
+  // On Android this also starts the native foreground wake service.
+  unawaited(VoiceAssistant.instance.start());
 
   runApp(const MobiloApp());
 }

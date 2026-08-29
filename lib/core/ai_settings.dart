@@ -125,6 +125,8 @@ class AiSettings {
     required this.providers,
     required this.sections,
     this.readAloud = true,
+    this.wakeWordEnabled = true,
+    this.voiceTtsEnabled = true,
   });
 
   static const String sectionChat = 'chat';
@@ -140,6 +142,13 @@ class AiSettings {
 
   /// Whether AI replies are read aloud by default (TTS toggle).
   bool readAloud;
+
+  /// Mobina listens for her wake word (on Android also in the background
+  /// via the foreground service).
+  bool wakeWordEnabled;
+
+  /// Mobina speaks command results aloud (TTS).
+  bool voiceTtsEnabled;
 
   static const String defaultChatModel = 'qwen/qwen3-32b';
   static const String defaultSearchModel = 'groq/compound';
@@ -212,6 +221,8 @@ class AiSettings {
       settings.providers = providers;
       settings.sections = sections;
       settings.readAloud = j['readAloud'] as bool? ?? true;
+      settings.wakeWordEnabled = j['wakeWordEnabled'] as bool? ?? true;
+      settings.voiceTtsEnabled = j['voiceTtsEnabled'] as bool? ?? true;
     } catch (_) {
       // Corrupt storage: fall back to defaults.
     }
@@ -225,6 +236,8 @@ class AiSettings {
       'sections':
           sections.map((k, v) => MapEntry(k, v.toJson())),
       'readAloud': readAloud,
+      'wakeWordEnabled': wakeWordEnabled,
+      'voiceTtsEnabled': voiceTtsEnabled,
     }));
   }
 
@@ -287,6 +300,16 @@ class AiSettings {
 
   Future<void> setReadAloud(bool value) async {
     readAloud = value;
+    await save();
+  }
+
+  Future<void> setWakeWordEnabled(bool value) async {
+    wakeWordEnabled = value;
+    await save();
+  }
+
+  Future<void> setVoiceTtsEnabled(bool value) async {
+    voiceTtsEnabled = value;
     await save();
   }
 }

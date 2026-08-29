@@ -159,11 +159,16 @@ class AiClient {
   }
 
   /// Non-streaming completion (used by the web-search section).
+  ///
+  /// [jsonMode] asks the provider for strict JSON output (only sent to
+  /// Groq; other OpenAI-compatible providers get the JSON instruction in
+  /// the prompt and the reply is parsed leniently).
   Future<String> complete({
     required AiProviderDef provider,
     required String model,
     required List<Map<String, String>> messages,
     Map<String, dynamic>? extra,
+    bool jsonMode = false,
     Duration timeout = const Duration(minutes: 2),
   }) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 20);
@@ -175,6 +180,8 @@ class AiClient {
         'model': model,
         'messages': messages,
         'stream': false,
+        if (jsonMode && provider.id == 'groq')
+          'response_format': {'type': 'json_object'},
         if (extra != null) ...extra,
       }));
       final response = await request.close().timeout(timeout);
@@ -292,7 +299,7 @@ If you find direct download links for files relevant to the request, include the
 /// ignored harmlessly by other models.
 const String chatSystemPrompt = '''
 /no_think
-You are the helpful assistant inside the Mobilo app (an Android/iOS app that monitors battery level and alerts the user).
+You are Mobina (مبینا), the helpful assistant inside the Mobilo app (an Android/iOS app that monitors battery level and alerts the user).
 Reply in the user's language; default to Persian (Farsi).
 Be short, practical and friendly.
 If you find direct download links for files relevant to the request, include the full URLs in your answer.

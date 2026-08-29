@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/ai_settings.dart';
 import '../core/fa.dart';
+import '../services/contacts_service.dart';
+import '../services/voice_assistant.dart';
 
 /// App settings. First item: AI model configuration (per-section
 /// provider + model), then general toggles.
@@ -15,6 +17,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   AiSettings? _settings;
 
+  /// 0 = never asked, 1 = granted, 2 = denied.
+  int _contactsStatus = 0;
+
   @override
   void initState() {
     super.initState();
@@ -23,13 +28,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _load() async {
     final settings = await AiSettings.load();
-    if (mounted) setState(() => _settings = settings);
+    final granted = await const ContactsService().hasPermission();
+    if (!mounted) return;
+    setState(() {
+      _settings = settings;
+      _contactsStatus = granted ? 1 : 0;
+    });
   }
 
   Future<void> _toggleReadAloud(bool value) async {
     final settings = _settings!;
     setState(() => settings.readAloud = value);
     await settings.setReadAloud(value);
+  }
+
+  Future<void> _toggleWakeWord(bool value) async {
+    final settings = _settings!;
+    setState(() => settings.wakeWordEnabled = value);
+    await settings.setWakeWordEnabled(value);
+    await VoiceAssistant.instance.refresh();
+  }
+
+  Future<void> _toggleVoiceTts(bool value) async {
+    final settings = _settings!;
+    setState(() => settings.voiceTtsEnabled = value);
+    await settings.setVoiceTtsEnabled(value);
+  }
+
+  Future<void> _requestContacts() async {
+    final service = const ContactsService();
+    final granted = await service.ensurePermission();
+    if (!mounted) return;
+    setState(() => _contactsStatus = granted ? 1 : 2);
   }
 
   @override
@@ -76,6 +106,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: Text(Strings.settingsReadAloudSub),
               value: settings.readAloud,
               onChanged: _toggleReadAloud,
+            ),
+          ),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 8, 0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.graphic_eq, color: scheme.primary),
+                      const SizedBox(width: 8),
+                      Text(Strings.settingsVoiceTitle,
+                          style: Theme.of(context).textTheme.titleSmall),
+                    ],
+                  ),
+                ),
+                SwitchListTile(
+                  title: Text(Strings.settingsWakeWord),
+                  subtitle: Text(Strings.settingsWakeWordSub),
+                  value: settings.wakeWordEnabled,
+                  onChanged: _toggleWakeWord,
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  title: Text(Strings.settingsVoiceTts),
+                  subtitle: Text(Strings.settingsVoiceTtsSub),
+                  value: settings.voiceTtsEnabled,
+                  onChanged: _toggleVoiceTts,
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(Icons.contacts,
+                      color: _contactsStatus == 1
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant),
+                  title: Text(Strings.settingsContacts),
+                  subtitle: Text(switch (_contactsStatus) {
+                    1 => Strings.settingsContactsGranted,
+                    2 => Strings.settingsContactsDenied,
+                    _ => Strings.settingsContactsNone,
+                  }),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: _requestContacts,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: Text(
+                    Strings.settingsVoiceExample,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 12,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Card(

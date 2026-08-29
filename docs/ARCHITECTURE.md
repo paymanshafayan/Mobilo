@@ -58,8 +58,11 @@ Mobilo یک اپلیکیشن پایش باتری است که:
 | `lib/core/ai_settings.dart` | مدل تنظیمات هوش مصنوعی: پرووایدها (Groq پیش‌فرض + OpenAI-compatible دلخواه)، انتخاب پرووایدر/مدل جداگانه برای هر بخش (چت، جستجوی وب)، ذخیره در `shared_preferences` |
 | `lib/services/ai_client.dart` | کلاینت OpenAI-compatible با `dart:io` (بدون SDK ثالث): **SSE streaming** برای چت + request تک‌مرحله‌ای برای جستجو + `SseLineParser` (قابل تست) + خطاهای کاربرپسند فارسی |
 | `lib/services/download_service.dart` | شناسایی URLهای فایلی در پاسخ AI، دانلود با درصد پیشرفت به `documents/downloads/`، و تحویل به share sheet سیستم |
-| `lib/ui/chat_screen.dart` | UI چت به سبک Gemini/ChatGPT: استریم پاسخ، ورودی وویس (`speech_to_text`)، TTS پاسخ‌ها (`flutter_tts`)، لینک‌های قابل‌کلیک، چیپ‌های دانلود فایل، حالت جستجوی وب |
-| `lib/ui/settings_screen.dart` | صفحهٔ تنظیمات؛ اولین آیتم «مدل» (پرووایدر/مدل هر بخش + مدیریت پرووایدها) + سوئیچ‌های عمومی |
+| `lib/ui/chat_screen.dart` | UI چت: استریم پاسخ، ورودی وویس (`speech_to_text`)، **دکمهٔ گفتگوی زندهٔ مبینا**، TTS پاسخ‌ها، لینک‌های قابل‌کلیک، چیپ‌های دانلود فایل، حالت جستجوی وب، نشانگر گوش‌دادن مبینا |
+| `lib/ui/settings_screen.dart` | صفحهٔ تنظیمات؛ اولین آیتم «مدل» (پرووایدر/مدل هر بخش + مدیریت پرووایدها) + کارت دستیار صوتی مبینا + سوئیچ‌های عمومی |
+| `lib/services/voice_assistant.dart` | مغز مبینا: حلقهٔ wake word (Dart)، دریافت دستور، کلاسیفایهٔ JSON نیت (call_contact/search_web/download_file/chat)، اجرا + پاسخ صوتی؛ حالت گفتگوی زنده (چرخهٔ گوش→AI→صدا) |
+| `lib/services/contacts_service.dart` | خواندن مخاطبین (flutter_contacts) + تطبیق محو‌به‌محو نام (فارسی) + شماره‌گیری `tel:` |
+| `lib/ui/voice_chat_sheet.dart` | UI تمام‌صفحهٔ گفتگوی زندهٔ صوتی (orb پالس‌دار + زیرنویس زنده) |
 
 ### ۳.۲ Android (Kotlin)
 
@@ -69,7 +72,7 @@ Mobilo یک اپلیکیشن پایش باتری است که:
 | `BatteryGuardService.kt` | **قلب سیستم**: Foreground Service با نوتیفیکیشن دائمی؛ poll ۳۰ ثانیه‌ای + receiver روی `POWER_CONNECTED/DISCONNECTED`؛ state-machine هشدارها؛ تکرار ۲ دقیقه‌ای؛ ساخت/به‌روزرسانی همهٔ نوتیفیکیشن‌ها |
 | `BatteryGuardBootReceiver.kt` | ری‌استارت سرویس بعد از `BOOT_COMPLETED` |
 | `BatteryGuardWatchdog.kt` | آلارم inexact تکرارشونده (هر ۳۰ دقیقه): اگر سیستم سرویس را بسته باشد (مثل محدودیت ۶ ساعتهٔ Android 16 یا Doze) دوباره روشن می‌کند |
-
+| `VoiceAssistantService.kt` | سرویس پیش‌زمینه (microphone FGS): گوش‌دادن دائمی به «مبینا» با SpeechRecognizer؛ هنگام بیداری، دستور (متن بعد از wake word) را از کانال `mobilo/voice_assistant` به Dart می‌فرستد و اپ را باز می‌کند |
 ### ۳.۳ iOS (Swift)
 
 | فایل | مسئولیت |
@@ -149,7 +152,9 @@ EventChannel   mobilo/battery_guard/events
 | `RECEIVE_BOOT_COMPLETED` | Android | ری‌استارت بعد از ری‌بوت |
 | اعلان (UNUserNotificationCenter) | iOS | اعلان‌های محلی |
 | Background Mode `fetch` | iOS | بیدار شدن‌های پس‌زمینه |
-| `RECORD_AUDIO` / `NSMicrophoneUsageDescription` | Android / iOS | ورودی وویس دستیار هوش مصنوعی (فقط هنگام فشردن میکروفون) |
+| `RECORD_AUDIO` / `NSMicrophoneUsageDescription` | Android / iOS | گوش‌دادن مبینا (wake word + گفتگو) |
+| `FOREGROUND_SERVICE_MICROPHONE` | Android | سرویس پیش‌زمینهٔ گوش‌دادن مبینا با اپ بسته |
+| `READ_CONTACTS` / `NSContactsUsageDescription` | Android / iOS | دستورات «شماره فلانی را بگیر» |
 
 ## ۹. تصمیمات کلیدی معماری
 
@@ -213,3 +218,30 @@ ChatScreen ──► AiSettings.load() ──► (provider, model) هر بخش
 درخواست‌ها مستقیم از گوشی به پرووایدر انتخابی می‌روند. کلید build-time در داخل
 APK/IPA قابل استخراج است (محدودیت ذاتی dart-define)؛ برای کلیدهای مهم، ورودی
 آن را فقط از طریق Settings اپ انجام دهید.
+
+### ۱۱.۵ مبینا: خط لولهٔ صوتی (wake word + دستورات + گفتگوی زنده)
+
+```
+                      ┌─ Android: VoiceAssistantService (microphone FGS)
+   «مبینا» شنیده شد  ┤    onResults → متن بعد از wake word → MethodChannel 'command' → Dart
+                      └─ iOS/fallback: حلقهٔ Dart (speech_to_text, re-listen loop)
+                                    │
+                    VoiceAssistant._handleCommand(command)
+                                    │
+              AiClient.complete(jsonMode: true)  ← prompt JSON (Groq: response_format json_object)
+                                    │
+        MobinaIntent.parse (lenient)  →  { call_contact | search_web | download_file | chat }
+                                    │
+      ┌───────────────┬──────────────────────┬────────────────────────┐
+      ▼               ▼                      ▼                        ▼
+ ContactsService   WebSearchService      DownloadService           AiClient.complete
+ lookup + tel:     (groq/compound)       (documents/downloads)     (جواب → TTS)
+      └───────────────┴──────────────────────┴────────────────────────┘
+                                    │
+                        TTS (fa-IR) + رویدادها به ChatScreen
+```
+
+- **دو موتور گوش‌دادن، یک قانون:** هم‌زمان فقط یک شناسا (FGS یا حلقهٔ Dart) فعال است تا برای میکروفون نجنگند؛ دکمهٔ دیکتهٔ صفحهٔ چت مبینا را موقتاً معلق می‌کند و بعد برمی‌گرداند.
+- **محدودیت iOS (صادقانه):** اپل اجازهٔ رکورد دائمی میکروفون در پس‌زمینه نمی‌دهد؛ wake word در iOS فقط وقتی اپ باز است کار می‌کند.
+- **اجرای دستور در پس‌زمینهٔ اندروید:** FGS فقط «بیدار» کردن و گرفتن دستور را انجام می‌دهد؛ اجرای واقعی (API + UI) وقتی اپ به جلو بازگردد توسط Dart انجام می‌شود (اگر activity مرده باشد، دستور در `pendingCommand` نگه‌داری و در `onResume` به Dart ارسال می‌شود).
+- **گفتگوی زنده:** `VoiceChatSheet` + حلقهٔ `listen → chatStream → TTS(setCompletionHandler) → listen`؛ تکه‌تکهٔ پاسخ زنده روی orb دیده می‌شود.
