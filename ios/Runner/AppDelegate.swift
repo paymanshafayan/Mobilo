@@ -26,7 +26,7 @@ import UserNotifications
     // monitoring that the Flutter side performs.
     application.registerForRemoteNotifications()
     application.setMinimumBackgroundFetchInterval(
-      UIApplicationBackgroundFetchIntervalMinimum)
+      UIApplication.backgroundFetchIntervalMinimum)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
