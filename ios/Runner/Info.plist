@@ -70,5 +70,8 @@
 	<array>
 		<string>fetch</string>
 	</array>
+	<!-- AI assistant: voice input (speech to text) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Mobilo به میکروفون دسترسی دارد تا صدای شما را در چت با دستیار هوشمند به متن تبدیل کند.</string>
 </dict>
 </plist>

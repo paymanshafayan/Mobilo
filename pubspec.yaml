@@ -31,6 +31,29 @@ dependencies:
   # Cupertino Icons font (iOS style icons).
   cupertino_icons: ^1.0.8
 
+  # ------------------------------------------------------------------
+  # AI assistant (chat + web search + file downloads)
+  # All pinned exactly: the code is written against these APIs.
+  # ------------------------------------------------------------------
+
+  # Voice input (device speech recognition, Android + iOS).
+  speech_to_text: 7.4.0
+
+  # Voice output (reads AI replies aloud).
+  flutter_tts: 4.2.5
+
+  # Persist AI settings (providers, models, toggles) on device.
+  shared_preferences: 2.5.5
+
+  # Where downloaded files are saved.
+  path_provider: 2.1.6
+
+  # Share/open downloaded files via the system share sheet.
+  share_plus: 13.3.0
+
+  # Open citation links in the browser.
+  url_launcher: 6.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

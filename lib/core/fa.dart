@@ -79,4 +79,58 @@ class Strings {
       'در اندروید، یک سرویس پیش‌زمینه (Foreground Service) به صورت ۲۴ ساعته باتری را پایش می‌کند و اعلان‌ها را حتی هنگام بسته بودن اپلیکیشن ارسال می‌کند.';
   static const String aboutIos =
       'در iOS، محدودیت‌های اپل اجازه پایش دائمی در پس‌زمینه را نمی‌دهند؛ اپلیکیشن در حالت فعال به‌صورت زنده پایش می‌کند و در حالت پس‌زمینه بهترین تلاش (best-effort) با بیدار شدن‌های گاه‌به‌گاه سیستم را انجام می‌دهد.';
+
+  // ------------------------------------------------------------------
+  // AI assistant (chat + web search + downloads)
+  // ------------------------------------------------------------------
+  static const String chatTitle = 'دستیار Mobilo';
+  static const String chatHint = 'پرسش خود را بنویسید یا روی میکروفون بزنید…';
+  static const String chatSearchHint = 'موضوع جستجو در وب را بنویسید…';
+  static const String chatSearchMode = 'جستجوی وب';
+  static const String chatWelcome = 'چطور می‌توانم کمکتان کنم؟';
+  static const String chatWelcomeSub =
+      'با دستیار هوشمند Mobilo می‌توانید با متن یا صدا گفتگو کنید، در وب جستجو کنید و فایل‌های مرتبط را دانلود کنید.';
+  static const String chatSend = 'ارسال';
+  static const String chatStop = 'توقف';
+  static const String chatNew = 'گفتگوی جدید';
+  static const String speakReply = 'پخش پاسخ';
+  static const String micListening = 'در حال گوش دادن…';
+  static const String micUnavailable = 'شناسایی گفتار در دسترس نیست.';
+  static const String ttsError = 'پخش صدا در دسترس نیست';
+  static const String suggestBatteryTips = 'نکات مهم برای عمر بیشتر باتری';
+  static const String suggestSearch = 'جستجو: آخرین اخبار فناوری باتری';
+  static const String fileDownload = 'دانلود';
+  static const String fileDone = 'دانلود شد';
+  static const String fileShare = 'اشتراک‌گذاری';
+
+  // Settings.
+  static const String settingsTitle = 'تنظیمات';
+  static const String settingsModel = 'مدل هوش مصنوعی';
+  static const String settingsSection = 'بخش';
+  static const String settingsSectionChat = 'بخش چت';
+  static const String settingsSectionSearch = 'بخش جستجوی وب';
+  static const String settingsProvider = 'پرووایدر';
+  static const String settingsModelName = 'مدل';
+  static const String settingsProviders = 'پرووایدها';
+  static const String settingsAddProvider = 'افزودن پرووایدر (سازگار با OpenAI)';
+  static const String settingsAddProviderShort = 'افزودن پرووایدر';
+  static const String settingsEditProvider = 'ویرایش پرووایدر';
+  static const String settingsDelete = 'حذف';
+  static const String settingsDeleteConfirm = 'حذف پرووایدر';
+  static const String settingsProviderName = 'نام';
+  static const String settingsProviderBaseUrl = 'آدرس API (base URL)';
+  static const String settingsProviderKey = 'کلید API';
+  static const String settingsProviderModels = 'مدل‌ها (با ویرگول جدا کنید)';
+  static const String settingsNoKey = 'کلید API تنظیم نشده است';
+  static const String settingsKeySet = 'کلید API تنظیم شده است';
+  static const String settingsKeyFromBuild =
+      'کلید از نسخهٔ build (GROQ_API_KEY) خوانده می‌شود؛ برای تغییر، آن را اینجا وارد کنید';
+  static const String settingsReadAloud = 'خواندن پاسخ با صدا';
+  static const String settingsReadAloudSub =
+      'پاسخ‌های دستیار را می‌توانید با دکمهٔ بلندگو بخوانید؛ با این گزینه صدا آماده می‌ماند';
+  static const String settingsPrivacy = 'حریم خصوصی';
+  static const String settingsPrivacyText =
+      'تنظیمات، کلیدهای API و گفتگوها فقط روی همین دستگاه ذخیره می‌شوند. درخواست‌ها مستقیم از گوشی شما به پرووایدر انتخابی ارسال می‌شود و از سرورهای Mobilo عبور نمی‌کند.';
+  static const String save = 'ذخیره';
+  static const String cancel = 'انصراف';
 }

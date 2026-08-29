@@ -49,12 +49,17 @@ Mobilo یک اپلیکیشن پایش باتری است که:
 | `lib/main.dart` | شروع: init اعلان‌ها، درخواست اجازه، start سرویس اندروید، start حلقهٔ آرتینگ |
 | `lib/app.dart` | `MaterialApp` — تم تیره + `Directionality.rtl` برای کل UI |
 | `lib/core/fa.dart` | تبدیل اعداد به فارسی (`faNum`) + تمام رشته‌های UI (`Strings`) |
-| `lib/services/battery_service.dart` | Singleton روی `battery_plus` **6.2.3**: استریم `onBatteryStateChanged` + پولینگ ۵ ثانیه‌ای سطح (در 6.2.x استریم level وجود ندارد) را به یک `Stream<BatterySnapshot>` broadcast تبدیل می‌کند |
+| `lib/services/battery_service.dart` | Singleton روی `battery_plus` **7.1.1**: استریم `onBatteryStateChanged` + پولینگ ۵ ثانیه‌ای سطح (در 6.2.x استریم level وجود ندارد) را به یک `Stream<BatterySnapshot>` broadcast تبدیل می‌کند |
 | `lib/services/guard_channel.dart` | پلی به کد بومی اندروید: `start/stop/isRunning/getActiveAlert/dismissAlert` + استریم رویدادها |
 | `lib/services/alert_service.dart` | state-machine جلسات هشدار در **iOS** (تکرار ۲ دقیقه‌ای با `Timer`) + `ValueNotifier<String?> activeAlert` برای UI |
 | `lib/ui/home_screen.dart` | صفحهٔ اصلی: گیج، کارت‌ها، کنترل نظارت، **overlay دکمهٔ انصراف** |
 | `lib/ui/battery_gauge.dart` | `CustomPainter` حلقهٔ درصد |
 | `lib/ui/about_sheet.dart` | برگهٔ توضیح رفتار و محدودیت‌ها |
+| `lib/core/ai_settings.dart` | مدل تنظیمات هوش مصنوعی: پرووایدها (Groq پیش‌فرض + OpenAI-compatible دلخواه)، انتخاب پرووایدر/مدل جداگانه برای هر بخش (چت، جستجوی وب)، ذخیره در `shared_preferences` |
+| `lib/services/ai_client.dart` | کلاینت OpenAI-compatible با `dart:io` (بدون SDK ثالث): **SSE streaming** برای چت + request تک‌مرحله‌ای برای جستجو + `SseLineParser` (قابل تست) + خطاهای کاربرپسند فارسی |
+| `lib/services/download_service.dart` | شناسایی URLهای فایلی در پاسخ AI، دانلود با درصد پیشرفت به `documents/downloads/`، و تحویل به share sheet سیستم |
+| `lib/ui/chat_screen.dart` | UI چت به سبک Gemini/ChatGPT: استریم پاسخ، ورودی وویس (`speech_to_text`)، TTS پاسخ‌ها (`flutter_tts`)، لینک‌های قابل‌کلیک، چیپ‌های دانلود فایل، حالت جستجوی وب |
+| `lib/ui/settings_screen.dart` | صفحهٔ تنظیمات؛ اولین آیتم «مدل» (پرووایدر/مدل هر بخش + مدیریت پرووایدها) + سوئیچ‌های عمومی |
 
 ### ۳.۲ Android (Kotlin)
 
@@ -144,6 +149,7 @@ EventChannel   mobilo/battery_guard/events
 | `RECEIVE_BOOT_COMPLETED` | Android | ری‌استارت بعد از ری‌بوت |
 | اعلان (UNUserNotificationCenter) | iOS | اعلان‌های محلی |
 | Background Mode `fetch` | iOS | بیدار شدن‌های پس‌زمینه |
+| `RECORD_AUDIO` / `NSMicrophoneUsageDescription` | Android / iOS | ورودی وویس دستیار هوش مصنوعی (فقط هنگام فشردن میکروفون) |
 
 ## ۹. تصمیمات کلیدی معماری
 
@@ -162,3 +168,48 @@ EventChannel   mobilo/battery_guard/events
 | Android 16 | سرویس `dataSync` محدودیت ۶ ساعته دارد؛ watchdog خرابی را می‌پوشاند |
 | OEM battery savers | ممکن است سرویس/آلارم را محدود کنند (مخصوصاً در بازار چین) |
 | دقت تکرار در اندروید | ±۳۰ ثانیه (منبع زمان‌بندی، حلقهٔ poll است) |
+
+## ۱۱. دستیار هوش مصنوعی (چت + جستجوی وب + دانلود فایل)
+
+### ۱۱.۱ اجزا و جریان داده
+
+```
+ChatScreen ──► AiSettings.load() ──► (provider, model) هر بخش
+   │
+   ├─ چت:        AiClient.chatStream()  ──SSE──► POST {base}/chat/completions
+   │             (stream: true؛ تکه‌تکه به UI می‌رسد؛ قابل Cancel)
+   │
+   ├─ جستجو:     WebSearchService.search()
+   │             POST {base}/chat/completions (stream: false)
+   │             پیش‌فرض Groq: model=groq/compound + compound_custom.tools.web_search
+   │             ← پاسخ + URLهای منابع (به‌صورت لینک قابل‌کلیک در UI)
+   │
+   └─ فایل:      extractFileUrls(پاسخ) → DownloadService.download()
+                 (documents/downloads/) → SharePlus (اشتراک‌گذاری/باز کردن)
+```
+
+### ۱۱.۲ پرووایدها و کلید API
+
+- **Groq (پیش‌فرض):** `https://api.groq.com/openai/v1` — کلید از
+  `String.fromEnvironment('GROQ_API_KEY')` (build-time) یا از مقدار واردشده در
+  تنظیمات (که اولویت دارد).
+- **پرووایدرهای سازگار با OpenAI:** کاربر نام + base URL + کلید + فهرست مدل‌ها را
+  در تنظیمات تعریف می‌کند؛ کلاینت برای همه پرووایدها یکسان است (همان endpoint
+  `chat/completions`).
+- **بخش‌ها:** امروز `chat` و `webSearch`؛ برای افزودن بخش جدید کافی است در
+  `AiSettings` یک section id ثبت کنید و در `ModelSettingsScreen` یک `_SectionCard`
+  اضافه کنید — منطق کلاینت/تنظیمات عملاً دست‌نخورده باقی می‌ماند.
+
+### ۱۱.۳ مدل‌های پیش‌فرض
+
+| بخش | مدل | دلیل |
+|---|---|---|
+| چت | `qwen/qwen3-32b` (Groq) | سرعت بالا + چندزبانه قوی؛ `/no_think` در system prompt استدلال داخلی Qwen3 را خاموش می‌کند تا پاسخ سریع‌تر باشد |
+| جستجوی وب | `groq/compound` (Groq) | آژانسی با **web search درون‌ساخته**؛ پاسخ با استناد به صفحات زنده + `executed_tools` در پاسخ |
+
+### ۱۱.۴ حریم خصوصی
+
+کلید API و تنظیمات فقط روی دستگاه (SharedPreferences)؛ هیچ سرور واسطی وجود ندارد —
+درخواست‌ها مستقیم از گوشی به پرووایدر انتخابی می‌روند. کلید build-time در داخل
+APK/IPA قابل استخراج است (محدودیت ذاتی dart-define)؛ برای کلیدهای مهم، ورودی
+آن را فقط از طریق Settings اپ انجام دهید.

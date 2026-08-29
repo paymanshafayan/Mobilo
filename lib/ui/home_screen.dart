@@ -8,6 +8,8 @@ import '../services/battery_service.dart';
 import '../services/guard_channel.dart';
 import 'about_sheet.dart';
 import 'battery_gauge.dart';
+import 'chat_screen.dart';
+import 'settings_screen.dart';
 
 /// Main screen: live battery gauge, state, alerts and monitoring controls.
 ///
@@ -120,6 +122,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
+              IconButton(
+                tooltip: Strings.chatTitle,
+                icon: const Icon(Icons.smart_toy),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ChatScreen()),
+                ),
+              ),
+              IconButton(
+                tooltip: Strings.settingsTitle,
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
+              ),
               IconButton(
                 tooltip: Strings.aboutTitle,
                 icon: const Icon(Icons.info_outline),

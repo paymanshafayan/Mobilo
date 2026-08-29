@@ -52,6 +52,20 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 | آیکون اعلان (Android) | `android/app/src/main/res/drawable/ic_stat_battery.xml` |
 | آیکون اپ | Android: `res/mipmap-*/ic_launcher.png`؛ iOS: `ios/Runner/Assets.xcassets/AppIcon.appiconset/` |
 | نام اپ / Package / Bundle ID | `AndroidManifest.xml` + `android/app/build.gradle.kts` (`applicationId`) + `ios/Runner.xcodeproj/project.pbxproj` (`PRODUCT_BUNDLE_IDENTIFIER`) |
+| **چت هوش مصنوعی (UI)** | `lib/ui/chat_screen.dart` — استریم، وویس، TTS، چیپ‌های دانلود |
+| **تنظیمات / انتخاب مدل** | `lib/ui/settings_screen.dart` — `SettingsScreen` + `ModelSettingsScreen` |
+| **تنظیمات AI (مدل + ذخیره)** | `lib/core/ai_settings.dart` — `AiSettings` / `AiProviderDef` / `SectionConfig` |
+| **کلاینت API (SSE + جستجو)** | `lib/services/ai_client.dart` — `AiClient` / `SseLineParser` / `WebSearchService` / `chatSystemPrompt` |
+| **دانلود فایل** | `lib/services/download_service.dart` — `extractFileUrls` / `DownloadService` |
+| **کلید API در build** | `String.fromEnvironment('GROQ_API_KEY')` — در CI: `--dart-define=GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}` (workflow)؛ محلی: `flutter run --dart-define=GROQ_API_KEY=...` |
+
+### ۴.۱ هوش مصنوعی — نکاتی که «چرا» مهم است
+
+- **چرا کلاینت دست‌ساز با `dart:io` به‌جای SDK (مثل groq/dart_openai)؟** صفر وابستگی اضافی، API سازگار با OpenAI برای همه پرووایدها یکسان است، و SSE parsing خودش یک تابع خالص قابل تست است (`SseLineParser` در `test/ai_client_test.dart`).
+- **چرا `groq/compound` برای جستجو؟** جستجوی وب به‌صورت درون‌ساخته دارد (یک request = جستجو + پاسخ + cite)؛ پارامتر `compound_custom.tools.enabled_tools` در `WebSearchService` آن را صریح‌کرد.
+- **چرا `/no_think` در system prompt چت؟** مدل Qwen3 پیش‌فرض «با استدلال داخلی» پاسخ می‌دهد (کندتر)؛ با `/no_think` رفتار چت سریع و عادی می‌شود. در مدل‌های بی‌اثر است.
+- **نکتهٔ امنیتی:** کلید `--dart-define` در داخل APK/IPA قابل استخراج است. secret ریپو `GROQ_API_KEY` فقط برای buildهای CI استفاده می‌شود؛ اگر کاربر کلید خودش را در Settings وارد کند، آن فقط روی دستگاه می‌ماند.
+- **افزودن بخش جدید به مدل‌ها** (مثلاً «خلاصه‌ساز»): یک section id در `AiSettings.defaults()` + یک `_SectionCard` در `ModelSettingsScreen` + سرویس‌تان همان `AiClient.complete/chatStream` را با آن section صدا بزند. همین.
 
 ## ۴. درونیات — چیزهایی که «چرا» مهم است
 
@@ -188,6 +202,7 @@ flutter build ipa --release        # خروجی: build/ios/ipa/Runner.ipa
 | بسته شدن سرویس توسط OEM battery savers | متوسط | watchdog + دکمهٔ شروع در UI |
 | `flutter_local_notifications` desugaring می‌خواهد | رفع‌شده | `isCoreLibraryDesugaringEnabled = true` + `coreLibraryDesugaring(desugar_jdk_libs)` در `android/app/build.gradle.kts` — اگر AGP نسخهٔ بالاتر خواست، فقط عدد نسخهٔ desugar_jdk_libs را بالا ببر |
 | `flutter_local_notifications` SPM ندارد | کم (فعلاً فقط WARNING) | در 3.47 build فقط هشدار می‌دهد و آن پلاگین با CocoaPods build می‌شود؛ در نسخه‌های آیندهٔ Flutter خطای سفت می‌شود — باید منتظر آپدیت پلاگین بمانیم
+| بسته‌های AI (speech_to_text, flutter_tts, share_plus, url_launcher, path_provider, shared_preferences) | کم | همه دقیقاً pin شده‌اند و با API این نسخه‌ها نوشته شده‌اند؛ در جدول ۳ راهنمای pin/آپدیت مثل battery_plus صادق است
 | تغییر آیکون‌ها در نسخه‌های Flutter | کم | `Icons.battery_horiz` در 3.47 حذف شده و با `battery_std` جایگزین شد؛ اگر خطای `Member not found: Icons.x` دیدی، `packages/flutter/lib/src/material/icons.dart` در Flutter خودت را چک کن |
 | تغییر API پلاگین‌ها در آپدیت‌های major | کم | caret-pin شده؛ در build شکست می‌خورد نه در runtime |
 
