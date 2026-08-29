@@ -57,9 +57,42 @@ class GuardChannel {
     }
   }
 
+  /// The active alert session on Android: `'low'`, `'full'` or `null`.
+  ///
+  /// The session repeats a notification every 2 minutes until dismissed.
+  Future<String?> getActiveAlert() async {
+    if (!isAndroid) {
+      return null;
+    }
+    try {
+      final bool? running = await _methodChannel.invokeMethod<bool>('isRunning');
+      if (running != true) {
+        return null;
+      }
+      final String? alert =
+          await _methodChannel.invokeMethod<String>('getActiveAlert');
+      return (alert == null || alert.isEmpty) ? null : alert;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// Ends the active alert session on Android (no-op off Android):
+  /// removes the alert notifications and stops the 2-minute repetition.
+  Future<void> dismissAlert() async {
+    if (!isAndroid) {
+      return;
+    }
+    try {
+      await _methodChannel.invokeMethod<void>('dismissAlert');
+    } on MissingPluginException {
+      // Native side missing - nothing to do.
+    }
+  }
+
   /// Live events pushed by the native service.
   ///
-  /// Each event is a map: `{ 'level': int, 'charging': bool, 'alert': 'low' | 'full' | null }`.
+  /// Each event is a map: `{ 'level': int, 'charging': bool, 'active': 'low' | 'full' | '' }`.
   /// The stream stays silent when the service is not running (or off Android).
   Stream<Map<String, dynamic>> get events => isAndroid
       ? _eventChannel

@@ -10,6 +10,10 @@ import 'about_sheet.dart';
 import 'battery_gauge.dart';
 
 /// Main screen: live battery gauge, state, alerts and monitoring controls.
+///
+/// While an alert session is active (low/full), a circular "انصراف" button
+/// is shown in the middle of the screen; tapping it dismisses the session
+/// and stops the 2-minute notification repetition.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -20,13 +24,25 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GuardChannel _guard = GuardChannel.instance;
   final ValueNotifier<bool> _serviceRunning = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> _activeAlert = ValueNotifier<String?>(null);
+
   StreamSubscription<Map<String, dynamic>>? _eventSub;
+  VoidCallback? _alertListener;
 
   @override
   void initState() {
     super.initState();
     _refreshServiceState();
-    _eventSub = _guard.events.listen(_onServiceEvent);
+    if (_guard.isAndroid) {
+      _refreshActiveAlert();
+      _eventSub = _guard.events.listen(_onServiceEvent);
+    } else {
+      _alertListener = () {
+        _activeAlert.value = AlertService.instance.activeAlert.value;
+      };
+      AlertService.instance.activeAlert.addListener(_alertListener!);
+      _alertListener!();
+    }
   }
 
   void _onServiceEvent(Map<String, dynamic> event) {
@@ -34,12 +50,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (event.isNotEmpty && !_serviceRunning.value) {
       _serviceRunning.value = true;
     }
+    final dynamic raw = event['active'];
+    final String active = (raw is String) ? raw.trim() : '';
+    _activeAlert.value = active.isEmpty ? null : active;
   }
 
   Future<void> _refreshServiceState() async {
     final bool running = await _guard.isRunning();
     if (mounted) {
       _serviceRunning.value = running;
+    }
+  }
+
+  Future<void> _refreshActiveAlert() async {
+    final String? active = await _guard.getActiveAlert();
+    if (mounted) {
+      _activeAlert.value = active;
     }
   }
 
@@ -50,76 +76,179 @@ class _HomeScreenState extends State<HomeScreen> {
       await _guard.start();
     }
     await _refreshServiceState();
+    await _refreshActiveAlert();
+  }
+
+  /// The circular "انصراف" button: ends the alert session everywhere.
+  Future<void> _dismissAlert() async {
+    if (_guard.isAndroid && await _guard.isRunning()) {
+      await _guard.dismissAlert();
+    }
+    AlertService.instance.dismissAlerts();
+    _activeAlert.value = null;
   }
 
   @override
   void dispose() {
     _eventSub?.cancel();
+    if (_alertListener != null) {
+      AlertService.instance.activeAlert.removeListener(_alertListener!);
+    }
     _serviceRunning.dispose();
+    _activeAlert.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(Strings.appName),
-            Text(
-              Strings.appTagline,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(Strings.appName),
+                Text(
+                  Strings.appTagline,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                tooltip: Strings.aboutTitle,
+                icon: const Icon(Icons.info_outline),
+                onPressed: () => AboutSheet.show(context),
               ),
+            ],
+          ),
+          body: StreamBuilder<BatterySnapshot>(
+            stream: BatteryService.instance.snapshots,
+            initialData: BatteryService.instance.last,
+            builder: (context, snapshot) {
+              final BatterySnapshot battery = snapshot.data ??
+                  const BatterySnapshot(
+                    level: null,
+                    trend: BatteryTrend.unknown,
+                  );
+              final Widget? alert = _alertCard(context, battery);
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildGauge(context, battery),
+                    const SizedBox(height: 24),
+                    _buildStatusCard(context, battery),
+                    if (alert != null) ...[
+                      const SizedBox(height: 12),
+                      alert,
+                    ],
+                    const SizedBox(height: 12),
+                    _buildMonitoringCard(context),
+                    const SizedBox(height: 12),
+                    _buildThresholdsCard(context),
+                    const SizedBox(height: 12),
+                    _buildAboutButton(context),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        ValueListenableBuilder<String?>(
+          valueListenable: _activeAlert,
+          builder: (context, active, _) {
+            if (active == null) {
+              return const SizedBox.shrink();
+            }
+            return _buildSkipOverlay(active);
+          },
+        ),
+      ],
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Circular "انصراف" overlay (center of the screen)
+  // ------------------------------------------------------------------
+
+  Widget _buildSkipOverlay(String active) {
+    final bool isLow = active == 'low';
+    final Color color =
+        isLow ? const Color(0xFFE53935) : const Color(0xFF34A853);
+    return Material(
+      color: Colors.black.withOpacity(0.6),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isLow ? Strings.lowAlertHeader : Strings.fullAlertHeader,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: _dismissAlert,
+              child: Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [color.withOpacity(0.85), color],
+                  ),
+                  border: Border.all(color: Colors.white70, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.55),
+                      blurRadius: 40,
+                      spreadRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.close, size: 42, color: Colors.white),
+                    const SizedBox(height: 2),
+                    const Text(
+                      Strings.skipAlert,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              Strings.alertRepeatHint,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            tooltip: Strings.aboutTitle,
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => AboutSheet.show(context),
-          ),
-        ],
-      ),
-      body: StreamBuilder<BatterySnapshot>(
-        stream: BatteryService.instance.snapshots,
-        initialData: BatteryService.instance.last,
-        builder: (context, snapshot) {
-          final BatterySnapshot battery = snapshot.data ??
-              const BatterySnapshot(
-                level: null,
-                trend: BatteryTrend.unknown,
-              );
-          final Widget? alert = _alertCard(context, battery);
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildGauge(context, battery),
-                const SizedBox(height: 24),
-                _buildStatusCard(context, battery),
-                if (alert != null) ...[
-                  const SizedBox(height: 12),
-                  alert,
-                ],
-                const SizedBox(height: 12),
-                _buildMonitoringCard(context),
-                const SizedBox(height: 12),
-                _buildThresholdsCard(context),
-                const SizedBox(height: 12),
-                _buildAboutButton(context),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
+
+  // ------------------------------------------------------------------
+  // Main content
+  // ------------------------------------------------------------------
 
   Widget _buildGauge(BuildContext context, BatterySnapshot battery) {
     final int? level = battery.level;

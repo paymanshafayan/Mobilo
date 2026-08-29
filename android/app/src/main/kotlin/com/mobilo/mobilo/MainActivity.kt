@@ -20,7 +20,22 @@ class MainActivity : FlutterActivity() {
                         BatteryGuardService.stop(this)
                         result.success(null)
                     }
+                    "dismissAlert" -> {
+                        BatteryGuardService.dismissAlert(this)
+                        result.success(null)
+                    }
                     "isRunning" -> result.success(BatteryGuardService.isRunning)
+                    "getActiveAlert" -> {
+                        // Only report an active session while the service lives,
+                        // so the UI never shows a stale skip button.
+                        result.success(
+                            if (BatteryGuardService.isRunning) {
+                                BatteryGuardService.activeAlert
+                            } else {
+                                null
+                            }
+                        )
+                    }
                     else -> result.notImplemented()
                 }
             }

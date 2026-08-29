@@ -44,6 +44,13 @@ class Strings {
   static String fullBatteryBody(int level) =>
       'سطح باتری به ${faNum(level)}٪ رسید. برای حفظ عمر باتری، شارژر را جدا کنید.';
 
+  // Circular dismiss button + repetition hint.
+  static const String skipAlert = 'انصراف';
+  static const String alertRepeatHint =
+      'تا فشردن دکمه‌ی «انصراف»، اعلان هر ۲ دقیقه تکرار می‌شود';
+  static const String lowAlertHeader = 'باتری کم است — به شارژ وصل کنید';
+  static const String fullAlertHeader = 'شارژ کامل شد — شارژر را جدا کنید';
+
   // Background monitoring.
   static const String monitoring = 'نظارت پس‌زمینه';
   static const String monitoringOn = 'نظارت باتری فعال است';

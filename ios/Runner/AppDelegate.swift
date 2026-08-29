@@ -8,8 +8,6 @@ import UserNotifications
   // Mirrors the Dart side (AlertService) and the Android service.
   private let lowThreshold = 15
   private let fullThreshold = 95
-  private var lowAlerted = false
-  private var fullAlerted = false
 
   override func application(
     _ application: UIApplication,
@@ -44,8 +42,6 @@ import UserNotifications
     _ application: UIApplication,
     performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
   ) {
-    var fired = false
-
     let device = UIDevice.current
     device.isBatteryMonitoringEnabled = true
     let rawLevel = device.batteryLevel // -1 when unavailable
@@ -56,33 +52,30 @@ import UserNotifications
     let level = Int((rawLevel * 100).rounded())
     let charging = device.batteryState == .charging
 
-    if charging {
-      // Plugged in: a new low-battery episode may start later.
-      lowAlerted = false
-    } else {
-      // Unplugged: a new charge session may start later.
-      fullAlerted = false
-    }
-
-    if charging && level >= fullThreshold && !fullAlerted {
-      fullAlerted = true
+    // Re-post while the condition holds: this is the background half of the
+    // "repeat until dismissed" behaviour. While the app is in the foreground
+    // the Dart side repeats the notification every 2 minutes; while
+    // suspended we can only act when Apple wakes us, so every wake that
+    // finds the condition still true re-alerts.
+    if charging && level >= fullThreshold {
       postNotification(
         id: "mobilo.battery.full",
         title: "🔋 باتری شارژ کامل شد",
         body: "سطح باتری به \(fa(level))٪ رسید. برای حفظ عمر باتری، شارژر را جدا کنید."
       )
-      fired = true
-    } else if !charging && level <= lowThreshold && !lowAlerted {
-      lowAlerted = true
+      completionHandler(.newData)
+      return
+    }
+    if !charging && level <= lowThreshold {
       postNotification(
         id: "mobilo.battery.low",
         title: "⚠️ باتری رو به اتمام است",
         body: "سطح باتری به \(fa(level))٪ رسیده است. لطفاً گوشی را به شارژ وصل کنید."
       )
-      fired = true
+      completionHandler(.newData)
+      return
     }
-
-    completionHandler(fired ? .newData : .noData)
+    completionHandler(.noData)
   }
 
   // MARK: - Helpers

@@ -35,6 +35,11 @@ import java.util.HashMap
  *  - the battery reaches [FULL_THRESHOLD] % or above while charging
  *    (the user is asked to unplug the charger - no third-party app can
  *    physically stop charging on Android or iOS).
+ *
+ * Alert sessions repeat every [ALERT_REPEAT_MS] (2 minutes) until the user
+ * taps "skip" - either the "اسکیپ اعلان" action on the notification, the
+ * MethodChannel `dismissAlert` call from the app UI, or the condition is
+ * resolved (charger plugged in / unplugged).
  */
 class BatteryGuardService : Service() {
 
@@ -51,11 +56,21 @@ class BatteryGuardService : Service() {
 
         private const val POLL_INTERVAL_MS = 30_000L
         private const val WAKE_LOCK_TIMEOUT_MS = 5_000L
+        private const val ALERT_REPEAT_MS = 120_000L
         private const val ACTION_STOP = "com.mobilo.mobilo.action.STOP"
+        private const val ACTION_DISMISS_ALERT = "com.mobilo.mobilo.action.DISMISS_ALERT"
 
         @Volatile
         var isRunning = false
             private set
+
+        /** Active alert session: "low", "full" or null. */
+        @Volatile
+        var activeAlert: String? = null
+            private set
+
+        @Volatile
+        private var lastAlertPost: Long = 0
 
         @Volatile
         private var eventSink: EventChannel.EventSink? = null
@@ -63,6 +78,8 @@ class BatteryGuardService : Service() {
         private val mainHandler = Handler(Looper.getMainLooper())
 
         fun start(context: Context) {
+            activeAlert = null
+            lastAlertPost = 0
             val intent = Intent(context, BatteryGuardService::class.java)
             ContextCompat.startForegroundService(context, intent)
         }
@@ -70,6 +87,12 @@ class BatteryGuardService : Service() {
         fun stop(context: Context) {
             val intent = Intent(context, BatteryGuardService::class.java)
                 .setAction(ACTION_STOP)
+            ContextCompat.startForegroundService(context, intent)
+        }
+
+        fun dismissAlert(context: Context) {
+            val intent = Intent(context, BatteryGuardService::class.java)
+                .setAction(ACTION_DISMISS_ALERT)
             ContextCompat.startForegroundService(context, intent)
         }
 
@@ -87,19 +110,25 @@ class BatteryGuardService : Service() {
     private var pollThread: Thread? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
-    private var lowAlerted = false
-    private var fullAlerted = false
     private var lastLevel: Int = -1
     private var lastCharging = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            BatteryGuardWatchdog.cancel(this)
-            stopForegroundCompat()
-            stopSelf()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_STOP -> {
+                clearAlert()
+                BatteryGuardWatchdog.cancel(this)
+                stopForegroundCompat()
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_DISMISS_ALERT -> {
+                clearAlert()
+                emitEvent(lastLevel, lastCharging)
+                return START_NOT_STICKY
+            }
         }
 
         createChannels()
@@ -136,6 +165,7 @@ class BatteryGuardService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        activeAlert = null
         try {
             unregisterReceiver(powerReceiver)
         } catch (e: Exception) {
@@ -147,7 +177,7 @@ class BatteryGuardService : Service() {
     }
 
     // ------------------------------------------------------------------
-    // Battery reading + threshold logic
+    // Battery reading + threshold / alert-session logic
     // ------------------------------------------------------------------
 
     @Synchronized
@@ -156,34 +186,60 @@ class BatteryGuardService : Service() {
         if (battery.first < 0) return
         val level = battery.first
         val charging = battery.second
+        val now = SystemClock.elapsedRealtime()
 
-        var alert: String? = null
+        val lowCondition = !charging && level <= LOW_THRESHOLD
+        val fullCondition = charging && level >= FULL_THRESHOLD
+        val activeBefore = activeAlert
 
-        if (charging && !lastCharging) lowAlerted = false
-        if (!charging && lastCharging) fullAlerted = false
+        // End sessions whose condition is gone (charger plugged/unplugged).
+        if (activeAlert == "low" && !lowCondition) clearAlert()
+        if (activeAlert == "full" && !fullCondition) clearAlert()
 
-        if (charging) {
-            if (level >= FULL_THRESHOLD && !fullAlerted) {
-                fullAlerted = true
-                alert = "full"
-                showFullAlert(level)
+        // Start new sessions or repeat the active one every 2 minutes.
+        when {
+            lowCondition -> {
+                if (activeAlert == null) {
+                    activeAlert = "low"
+                    lastAlertPost = now
+                    showLowAlert(level)
+                } else if (now - lastAlertPost >= ALERT_REPEAT_MS) {
+                    lastAlertPost = now
+                    showLowAlert(level)
+                }
             }
-        } else {
-            if (level <= LOW_THRESHOLD && !lowAlerted) {
-                lowAlerted = true
-                alert = "low"
-                showLowAlert(level)
+            fullCondition -> {
+                if (activeAlert == null) {
+                    activeAlert = "full"
+                    lastAlertPost = now
+                    showFullAlert(level)
+                } else if (now - lastAlertPost >= ALERT_REPEAT_MS) {
+                    lastAlertPost = now
+                    showFullAlert(level)
+                }
             }
         }
 
-        val changed = level != lastLevel || charging != lastCharging
+        val levelChanged = level != lastLevel
+        val chargingChanged = charging != lastCharging
+        val alertChanged = activeAlert != activeBefore
         lastLevel = level
         lastCharging = charging
 
         updateServiceNotification(level, charging)
-        if (changed || alert != null) {
-            emitEvent(level, charging, alert)
+        if (levelChanged || chargingChanged || alertChanged) {
+            emitEvent(level, charging)
         }
+    }
+
+    /** Ends the active alert session and removes its notifications. */
+    private fun clearAlert() {
+        if (activeAlert == null) return
+        activeAlert = null
+        lastAlertPost = 0
+        val nm = withNotificationManager()
+        nm.cancel(LOW_BATTERY_NOTIFICATION_ID)
+        nm.cancel(FULL_BATTERY_NOTIFICATION_ID)
     }
 
     /** Reads the battery via the sticky ACTION_BATTERY_CHANGED broadcast. */
@@ -307,7 +363,8 @@ class BatteryGuardService : Service() {
 
     private fun showLowAlert(level: Int) {
         val text =
-            "سطح باتری به ${fa(level)}٪ رسیده است. لطفاً گوشی را به شارژ وصل کنید."
+            "سطح باتری به ${fa(level)}٪ رسیده است. لطفاً گوشی را به شارژ وصل کنید. " +
+                "(تا فشردن «اسکیپ»، هر ۲ دقیقه تکرار می‌شود)"
         val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_battery)
             .setContentTitle("⚠️ باتری رو به اتمام است")
@@ -318,13 +375,15 @@ class BatteryGuardService : Service() {
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openAppIntent())
+            .addAction(R.drawable.ic_stat_battery, "اسکیپ اعلان", dismissAlertIntent())
             .build()
         withNotificationManager().notify(LOW_BATTERY_NOTIFICATION_ID, notification)
     }
 
     private fun showFullAlert(level: Int) {
         val text =
-            "سطح باتری به ${fa(level)}٪ رسید. برای حفظ عمر باتری، شارژر را جدا کنید."
+            "سطح باتری به ${fa(level)}٪ رسید. برای حفظ عمر باتری، شارژر را جدا کنید. " +
+                "(تا فشردن «اسکیپ»، هر ۲ دقیقه تکرار می‌شود)"
         val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_battery)
             .setContentTitle("🔋 باتری شارژ کامل شد")
@@ -335,6 +394,7 @@ class BatteryGuardService : Service() {
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openAppIntent())
+            .addAction(R.drawable.ic_stat_battery, "اسکیپ اعلان", dismissAlertIntent())
             .build()
         withNotificationManager().notify(FULL_BATTERY_NOTIFICATION_ID, notification)
     }
@@ -359,6 +419,14 @@ class BatteryGuardService : Service() {
         )
     }
 
+    private fun dismissAlertIntent(): PendingIntent {
+        val intent = Intent(this, BatteryGuardService::class.java)
+            .setAction(ACTION_DISMISS_ALERT)
+        return PendingIntent.getService(
+            this, 2, intent, PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
     private fun stopForegroundCompat() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -368,11 +436,11 @@ class BatteryGuardService : Service() {
         }
     }
 
-    private fun emitEvent(level: Int, charging: Boolean, alert: String?) {
+    private fun emitEvent(level: Int, charging: Boolean) {
         val map = HashMap<String, Any>()
         map["level"] = level
         map["charging"] = charging
-        if (alert != null) map["alert"] = alert
+        map["active"] = activeAlert ?: ""
         // EventSink must be used on the platform (main) thread.
         mainHandler.post {
             eventSink?.success(map)
