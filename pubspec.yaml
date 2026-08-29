@@ -1,0 +1,36 @@
+name: mobilo
+description: "Mobilo - battery guardian app: live battery level, low-battery (15%) and full-charge (95%) alerts, 24/7 background monitoring on Android."
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`.
+publish_to: 'none'
+
+# Version and build number for your application.
+# In Android, build-name is used as versionName while build-number as versionCode.
+# In iOS, build-name is CFBundleShortVersionString and build-number is CFBundleVersion.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Battery level + charging state (both platforms, works in foreground).
+  battery_plus: ^6.0.1
+
+  # Local notifications for the low/full battery alerts
+  # (also provides the runtime notification permission request on Android 13+).
+  flutter_local_notifications: ^18.0.1
+
+  # Cupertino Icons font (iOS style icons).
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
