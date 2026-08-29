@@ -1,0 +1,69 @@
+name: Build APK & IPA
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run unit tests
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobilo-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  build-ipa:
+    name: iOS IPA (unsigned)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run unit tests
+        run: flutter test
+
+      # NOTE: این پروژه قالب SPM (Flutter 3.47+) است، پس نیازی به `pod install` نیست.
+      # خروجی بدون امضا (unsigned) است؛ برای امضای واقعی باید certificate و
+      # provisioning profile را به‌صورت secret در GitHub اضافه کرد.
+      - name: Build release IPA (no codesign)
+        run: flutter build ipa --no-codesign
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobilo-release-ipa
+          path: build/ios/ipa/Runner.ipa
+          if-no-files-found: error
