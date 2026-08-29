@@ -37,7 +37,7 @@ jobs:
           if-no-files-found: error
 
   build-ipa:
-    name: iOS IPA (unsigned)
+    name: iOS (unsigned IPA + archive)
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -55,15 +55,56 @@ jobs:
       - name: Run unit tests
         run: flutter test
 
-      # NOTE: این پروژه قالب SPM (Flutter 3.47+) است، پس نیازی به `pod install` نیست.
-      # خروجی بدون امضا (unsigned) است؛ برای امضای واقعی باید certificate و
-      # provisioning profile را به‌صورت secret در GitHub اضافه کرد.
-      - name: Build release IPA (no codesign)
-        run: flutter build ipa --no-codesign
+      # Flutter builds the app and resolves SPM/CocoaPods dependencies.
+      # (flutter_local_notifications does not support SPM yet - warning only for now)
+      - name: Build iOS release (no codesign)
+        run: flutter build ios --release --no-codesign
 
-      - name: Upload IPA artifact
+      # NOTE: Flutter 3.47's `flutter build ipa --no-codesign` does NOT produce
+      # an IPA (it only produces an xcarchive). So we archive + export directly
+      # with xcodebuild, disabling code signing - no Development Team required.
+      - name: Xcode archive (no signing)
+        run: |
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$GITHUB_WORKSPACE/build/ios/Runner.xcarchive" \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Export unsigned IPA
+        continue-on-error: true
+        run: |
+          cat > build/ios/ExportOptions-unsigned.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>development</string>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          xcodebuild -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportPath build/ios/ipa-unsigned \
+            -exportOptionsPlist build/ios/ExportOptions-unsigned.plist \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload Xcode archive (always available)
         uses: actions/upload-artifact@v4
         with:
-          name: mobilo-release-ipa
-          path: build/ios/ipa/Runner.ipa
+          name: mobilo-ios-xcarchive
+          path: build/ios/Runner.xcarchive
           if-no-files-found: error
+
+      - name: Upload unsigned IPA (re-sign before installing on a device)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobilo-ios-ipa-unsigned
+          path: build/ios/ipa-unsigned/Runner.ipa
+          if-no-files-found: warn
