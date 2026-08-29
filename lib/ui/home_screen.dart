@@ -307,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case BatteryTrend.full:
         return Icons.battery_full;
       case BatteryTrend.discharging:
-        return Icons.battery_horiz;
+        return Icons.battery_std;
       case BatteryTrend.notCharging:
         return Icons.battery_unknown;
       case BatteryTrend.unknown:

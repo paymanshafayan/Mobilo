@@ -140,6 +140,8 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 | محدودیت پس‌زمینهٔ iOS | inherent (سیاست اپل) | مستندسازی شده؛ در UI و README |
 | ۶ ساعت dataSync در Android 16 | متوسط | watchdog خودترمیم |
 | بسته شدن سرویس توسط OEM battery savers | متوسط | watchdog + دکمهٔ شروع در UI |
+| هشدار KGP در build (battery_plus) | کم (فعلاً فقط WARNING) | در Flutter 3.47 build شکست نمی‌خورد؛ وقتی Flutter «Built-in Kotlin» را اجباری کرد، battery_plus نسخهٔ جدیدتر (با Built-in Kotlin) لازم می‌شود — همان فرآیند pin/آپدیت بخش ۳ |
+| تغییر آیکون‌ها در نسخه‌های Flutter | کم | `Icons.battery_horiz` در 3.47 حذف شده و با `battery_std` جایگزین شد؛ اگر خطای `Member not found: Icons.x` دیدی، `packages/flutter/lib/src/material/icons.dart` در Flutter خودت را چک کن |
 | تغییر API پلاگین‌ها در آپدیت‌های major | کم | caret-pin شده؛ در build شکست می‌خورد نه در runtime |
 
 — پایان سند —
