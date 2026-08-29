@@ -91,12 +91,12 @@ import UserNotifications
   /// Converts ASCII digits to Persian digits.
   private func fa(_ value: Int) -> String {
     let digits = "۰۱۲۳۴۵۶۷۸۹"
-    return String(value)
-      .map { c -> Character in
-        if let digit = c.wholeNumberValue, (0...9).contains(digit) {
-          return digits[digits.index(digits.startIndex, offsetBy: digit)]
-        }
-        return c
+    // String.map returns [Character] in Swift - wrap the result in String.
+    return String(String(value).map { c -> Character in
+      if let digit = c.wholeNumberValue, (0...9).contains(digit) {
+        return digits[digits.index(digits.startIndex, offsetBy: digit)]
       }
+      return c
+    })
   }
 }
