@@ -18,7 +18,10 @@ dependencies:
     sdk: flutter
 
   # Battery level + charging state (both platforms, works in foreground).
-  battery_plus: ^6.0.1
+  # Pinned exactly: the Dart code is written against the 6.2.3 API
+  # (no level stream, non-nullable batteryLevel, connectedNotCharging state).
+  # Bump deliberately and adapt lib/services/battery_service.dart.
+  battery_plus: 6.2.3
 
   # Local notifications for the low/full battery alerts
   # (also provides the runtime notification permission request on Android 13+).

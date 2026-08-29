@@ -35,6 +35,9 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 
 ## ۳. نقشهٔ کد — «چیزی که می‌خواهی را کجا پیدا کنم؟»
 
+> ⚠️ **نسخهٔ پلاگین‌ها:** `battery_plus` **دقیقاً** `6.2.3` pin شده (نه caret) چون کد `battery_service.dart` با API این نسخه نوشته شده (استریم level حذف شده، `batteryLevel` non-nullable شده، `BatteryState.notCharging` به `connectedNotCharging` تغییر نام داده). اگر خواستی آپدیت کنی، اول سورس نسخهٔ جدید را بخوان و `battery_service.dart` را adapt کن. سورس رسمی: `fluttercommunity/plus_plugins` (پکیج `packages/battery_plus`).
+
+
 | اگر بخواهی... | برو به... |
 |---|---|
 | آستانه‌های ۱۵٪ / ۹۵٪ را تغییر بدهی | `lib/services/alert_service.dart` (`lowThreshold`/`fullThreshold`) **و** `android/app/src/main/kotlin/.../BatteryGuardService.kt` (`LOW_THRESHOLD`/`FULL_THRESHOLD`) **و** `ios/Runner/AppDelegate.swift` (`lowThreshold`/`fullThreshold`). **هر سه لایه را با هم عوض کن** — منطق در سه جا به‌صورت آگاهانه mirror شده |
@@ -119,7 +122,7 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 ## ۸. سؤالات پرتکرار
 
 **Q: چرا از `battery_plus` استفاده شده و نه `flutter_battery`؟**
-`battery_plus` پلاگین رسمی تیم Flutter است، active نگهداری می‌شود و در هر دو پلتفرم مستقر است.
+`battery_plus` پلاگین رسمی (فامیل plus، نگهداری‌شده توسط fluttercommunity) است، در هر دو پلتفرم مستقر است و از SPM روی iOS هم پشتیبانی می‌کند (نسخهٔ 6.1 به بعد). نسخهٔ دقیق pin شده — دلیلش را ببخش بالا.
 
 **Q: چرا نوتیفیکیشن سرویس `IMPORTANCE_LOW` است؟**
 دائمی است و نباید آزاردهنده باشد؛ هشدارها روی کانال HIGH (صدا+لرزش) می‌روند.

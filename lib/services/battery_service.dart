@@ -27,8 +27,16 @@ class BatterySnapshot {
       );
 }
 
-/// Singleton wrapper around `battery_plus` that merges the level stream and
-/// the state stream into a single [BatterySnapshot] stream.
+/// Singleton wrapper around `battery_plus` that exposes a single
+/// [BatterySnapshot] stream to the UI.
+///
+/// Targeted at `battery_plus` **6.2.x**, whose API:
+///  * has a state stream (`onBatteryStateChanged`) but **no level stream**,
+///  * exposes a non-nullable `Future<int> batteryLevel`.
+///
+/// Because of that, the level is polled every [pollInterval] (lightweight
+/// method-channel call) and re-read on every state change, so the UI always
+/// gets a fresh merged snapshot.
 class BatteryService {
   BatteryService._internal();
 
@@ -38,8 +46,13 @@ class BatteryService {
   final StreamController<BatterySnapshot> _controller =
       StreamController<BatterySnapshot>.broadcast();
 
+  /// How often the battery level is polled (6.2.x has no level stream).
+  static const Duration pollInterval = Duration(seconds: 5);
+
   bool _started = false;
   BatterySnapshot? _last;
+  Timer? _pollTimer;
+  StreamSubscription<BatteryState>? _stateSub;
 
   /// Broadcast stream of merged battery readings.
   Stream<BatterySnapshot> get snapshots => _controller.stream;
@@ -55,27 +68,43 @@ class BatteryService {
       return;
     }
     _started = true;
-    _battery.onBatteryLevelRead.listen(_onLevel);
-    _battery.onBatteryStateChanged.listen(_onState);
-    await _readOnce();
+    _stateSub = _battery.onBatteryStateChanged.listen(_onState);
+    _pollTimer = Timer.periodic(pollInterval, (_) => _readLevel());
+    await _readAll();
   }
 
-  Future<void> _readOnce() async {
+  Future<void> _readAll() async {
     int? level;
     BatteryState state;
     try {
       level = await _battery.batteryLevel;
+    } catch (_) {
+      level = null; // e.g. device without a battery
+    }
+    try {
       state = await _battery.batteryState;
     } catch (_) {
-      // Plugin unavailable (e.g. unit tests) - stay silent.
-      return;
+      state = BatteryState.unknown;
     }
     _emit(level, _mapState(state));
   }
 
-  void _onLevel(int? level) => _emit(level, null);
+  Future<void> _readLevel() async {
+    int? level;
+    try {
+      level = await _battery.batteryLevel;
+    } catch (_) {
+      return; // keep the previous value
+    }
+    _emit(level, null);
+  }
 
-  void _onState(BatteryState state) => _emit(null, _mapState(state));
+  void _onState(BatteryState state) {
+    // State change (plug/unplug, full): emit the trend now and refresh
+    // the level right away so the UI does not wait for the next poll.
+    _emit(null, _mapState(state));
+    _readLevel();
+  }
 
   void _emit(int? level, BatteryTrend? trend) {
     final BatterySnapshot next = BatterySnapshot(
@@ -96,7 +125,7 @@ class BatteryService {
         return BatteryTrend.discharging;
       case BatteryState.full:
         return BatteryTrend.full;
-      case BatteryState.notCharging:
+      case BatteryState.connectedNotCharging:
         return BatteryTrend.notCharging;
       case BatteryState.unknown:
         return BatteryTrend.unknown;

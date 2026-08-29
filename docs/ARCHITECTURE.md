@@ -49,7 +49,7 @@ Mobilo یک اپلیکیشن پایش باتری است که:
 | `lib/main.dart` | شروع: init اعلان‌ها، درخواست اجازه، start سرویس اندروید، start حلقهٔ آرتینگ |
 | `lib/app.dart` | `MaterialApp` — تم تیره + `Directionality.rtl` برای کل UI |
 | `lib/core/fa.dart` | تبدیل اعداد به فارسی (`faNum`) + تمام رشته‌های UI (`Strings`) |
-| `lib/services/battery_service.dart` | Singleton روی `battery_plus`: استریم‌های level و state را به `Stream<BatterySnapshot>` تبدیل می‌کند (broadcast) |
+| `lib/services/battery_service.dart` | Singleton روی `battery_plus` **6.2.3**: استریم `onBatteryStateChanged` + پولینگ ۵ ثانیه‌ای سطح (در 6.2.x استریم level وجود ندارد) را به یک `Stream<BatterySnapshot>` broadcast تبدیل می‌کند |
 | `lib/services/guard_channel.dart` | پلی به کد بومی اندروید: `start/stop/isRunning/getActiveAlert/dismissAlert` + استریم رویدادها |
 | `lib/services/alert_service.dart` | state-machine جلسات هشدار در **iOS** (تکرار ۲ دقیقه‌ای با `Timer`) + `ValueNotifier<String?> activeAlert` برای UI |
 | `lib/ui/home_screen.dart` | صفحهٔ اصلی: گیج، کارت‌ها، کنترل نظارت، **overlay دکمهٔ انصراف** |

@@ -30,7 +30,7 @@ class Strings {
   static const String charging = 'در حال شارژ';
   static const String discharging = 'در حال مصرف';
   static const String full = 'شارژ کامل';
-  static const String notCharging = 'شارژر وصل نیست';
+  static const String notCharging = 'شارژر وصل است — در حال شارژ نیست';
   static const String unknown = 'نامشخص';
   static const String batteryLevel = 'سطح باتری';
 
