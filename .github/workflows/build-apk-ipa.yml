@@ -40,7 +40,7 @@ jobs:
           if-no-files-found: error
 
   build-ipa:
-    name: iOS (unsigned IPA + archive)
+    name: iOS (simulator build + best-effort unsigned device archive)
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -58,15 +58,27 @@ jobs:
       - name: Run unit tests
         run: flutter test
 
-      # Flutter builds the app and resolves SPM/CocoaPods dependencies.
-      # (flutter_local_notifications does not support SPM yet - warning only for now)
-      - name: Build iOS release (no codesign)
-        run: flutter build ios --release --no-codesign --dart-define=GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+      # CI has no Apple Developer account, and the flutter tool rejects any
+      # DEVICE build without a selected Development Team (even with
+      # --no-codesign). Building for the SIMULATOR instead needs no code
+      # signing at all and still compiles the full iOS target in release
+      # (Dart + Swift + all plugins) - which is what this job verifies.
+      - name: Build iOS release (simulator, no codesign)
+        run: flutter build ios --release --no-codesign --simulator --dart-define=GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
 
-      # NOTE: Flutter 3.47's `flutter build ipa --no-codesign` does NOT produce
-      # an IPA (it only produces an xcarchive). So we archive + export directly
-      # with xcodebuild, disabling code signing - no Development Team required.
-      - name: Xcode archive (no signing)
+      - name: Package simulator app
+        run: |
+          APP=$(find build/ios -type d -name Runner.app | head -1)
+          test -n "$APP" || { echo "Runner.app not found"; exit 1; }
+          echo "Built simulator app: $APP"
+          (cd "$(dirname "$APP")" && zip -qry "$GITHUB_WORKSPACE/build/ios-simulator-Runner.app.zip" Runner.app)
+
+      # Best effort: unsigned device-slice archive via xcodebuild with
+      # signing fully disabled (no Development Team needed for the archive
+      # itself). If this fails, the simulator build above already proved
+      # the iOS target compiles - do not block the pipeline.
+      - name: Xcode device archive (no signing, best effort)
+        continue-on-error: true
         run: |
           cd ios
           xcodebuild -workspace Runner.xcworkspace \
@@ -78,7 +90,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
 
-      - name: Export unsigned IPA
+      - name: Export unsigned device IPA (best effort)
         continue-on-error: true
         run: |
           cat > build/ios/ExportOptions-unsigned.plist <<'PLIST'
@@ -98,12 +110,19 @@ jobs:
             -exportOptionsPlist build/ios/ExportOptions-unsigned.plist \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload Xcode archive (always available)
+      - name: Upload simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobilo-ios-simulator-app
+          path: build/ios-simulator-Runner.app.zip
+          if-no-files-found: error
+
+      - name: Upload Xcode device archive (best effort)
         uses: actions/upload-artifact@v4
         with:
           name: mobilo-ios-xcarchive
           path: build/ios/Runner.xcarchive
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Upload unsigned IPA (re-sign before installing on a device)
         uses: actions/upload-artifact@v4
