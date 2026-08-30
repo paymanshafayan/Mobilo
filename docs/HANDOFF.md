@@ -137,9 +137,9 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 - **IPA:** `flutter build ipa --release` با certificate فعال.
 - **GitHub Actions:** workflow `.github/workflows/build-apk-ipa.yml` دو job دارد:
   - `build-apk` (ubuntu): خروجی `app-release.apk`
-  - `build-ipa` (macos): خروجی **بیلد release برای iOS Simulator** (اصلی و همیشه در دسترس — بدون هیچ حساب Apple) + **xcarchive/IPA بدون امضای دستگاه** (best-effort)
+  - `build-ipa` (macos): خروجی **xcarchive بدون امضای دستگاه** (Release، همیشه در دسترس) + **IPA بدون امضا** (best-effort از طریق `-exportArchive`)
 
-  > ⚠️ نکتهٔ مهم (Flutter 3.47): (۱) `flutter build ipa --no-codesign` دیگر **IPA تولید نمی‌کند** (فقط xcarchive). (۲) مهم‌تر: `flutter build ios --no-codesign` برای **دستگاه** حتی با `--no-codesign` نیاز به **Development Team انتخاب‌شده** دارد (خودِ ابزار flutter این را بررسی می‌کند) و در CI که حساب Apple وجود ندارد می‌افتد. به‌همین‌دلیل workflow اول بیلد **simulator** می‌زند (اصلاً code-signing ندارد و کل target iOS در release کامپایل می‌شود) و بعد به‌صورت best-effort با `xcodebuild archive` + `CODE_SIGNING_ALLOWED=NO` آرشیو دستگاه بدون امضا می‌سازد.
+  > ⚠️ نکته‌های مهم (Flutter 3.47): (۱) `flutter build ipa --no-codesign` IPA تولید نمی‌کند (فقط xcarchive). (۲) `flutter build ios --no-codesign` برای **دستگاه** حتی با `--no-codesign` نیاز به **Development Team انتخاب‌شده** دارد (خودِ ابزار این را بررسی می‌کند) — در CI که حساب Apple نیست می‌افتد. (۳) بیلد **Release برای شبیه‌ساز اصلاً پشتیبانی نمی‌شود** («Release mode is not supported for simulators»؛ AOT فقط برای دستگاه است). به‌همین‌دلیل workflow اصلاً `flutter build ios` را اجرا نمی‌کند: بعد از `pod install` مستقیماً `xcodebuild archive -configuration Release -destination generic/platform=iOS` با `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` اجرا می‌شود — فازهای بیلد Flutter همچنان داخل xcodebuild (از طریق `xcode_backend.sh`) اجرا می‌شوند، پس کل target iOS در Release کامپایل می‌شود بدون هیچ Development Team.
 
 ### ساخت IPA امضادار (برای نصب روی دستگاه / اپ استور)
 

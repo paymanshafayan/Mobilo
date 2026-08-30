@@ -134,7 +134,7 @@ class VoiceAssistantService : Service() {
             override fun onPartialResults(partial: Bundle?) {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
-        sr.listen(buildIntent())
+        sr.startListening(buildIntent())
     }
 
     /**
@@ -170,7 +170,7 @@ class VoiceAssistantService : Service() {
             return
         }
         val command = text.substring(best + bestLen).trim()
-        if (command.isNotEmpty) {
+        if (command.isNotEmpty()) {
             // Wake word + command in one breath: hand it to Dart and reopen
             // the app so the user sees what Mobina is doing.
             sendCommand(command)
@@ -292,7 +292,7 @@ class VoiceAssistantService : Service() {
             .setContentTitle("مبینا")
             .setContentText(text)
             .setOngoing(true)
-            .setSilent(true)
+            .setSound(null)
             .setCategory(Notification.CATEGORY_SERVICE)
             .setContentIntent(openAppPendingIntent())
             .build()
@@ -305,7 +305,7 @@ class VoiceAssistantService : Service() {
             .setContentText(text)
             .setOngoing(false)
             .setAutoCancel(true)
-            .setCategory(Notification.CATEGORY_VOICE)
+            .setCategory(Notification.CATEGORY_MESSAGE)
             .setContentIntent(openAppPendingIntent())
             .build()
         nm.notify(WAKE_NOTIF_ID, notification)
