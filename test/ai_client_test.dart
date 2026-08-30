@@ -6,8 +6,9 @@ void main() {
   group('SseLineParser', () {
     test('parses payloads split across chunks', () {
       final parser = SseLineParser();
-      // First chunk ends mid-payload.
-      expect(parser.feed('data: {"a":1}\n\nda'), isEmpty);
+      // First chunk ends mid-payload (no blank line yet -> no event is
+      // complete).
+      expect(parser.feed('data: {"a":1}\nda'), isEmpty);
       // Second chunk completes the second payload.
       expect(parser.feed('ta: {"a":2}\n\n'), ['{"a":1}', '{"a":2}']);
     });

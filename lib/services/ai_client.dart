@@ -41,17 +41,35 @@ class CancelToken {
 class SseLineParser {
   final StringBuffer _pending = StringBuffer();
 
-  /// Feeds one raw chunk; returns the complete data payloads found
-  /// (without the `data:` prefix, excluding `[DONE]`).
+  /// Feeds one raw chunk; returns the data payloads whose SSE event
+  /// (terminated by a blank line) has fully arrived — without the `data:`
+  /// prefix and excluding `[DONE]`. Data lines from an in-flight event
+  /// stay buffered until the event's blank line arrives, so chunks may be
+  /// split anywhere (mid-line, mid-payload, mid-event).
   List<String> feed(String chunk) {
     _pending.write(chunk);
     final text = _pending.toString();
     final lines = text.split('\n');
+    final complete = lines.sublist(0, lines.length - 1);
+    final partialLine = lines.last;
+
+    // Everything after the last blank line belongs to an in-flight event.
+    var flushUpTo = complete.length;
+    for (var i = complete.length - 1; i >= 0; i--) {
+      if (complete[i].trim().isEmpty) break;
+      flushUpTo = i;
+    }
+
+    // Re-buffer the in-flight event plus the partial trailing line.
     _pending
       ..clear()
-      ..write(lines.last); // keep the (possibly partial) trailing line
+      ..write(
+          [...complete.sublist(flushUpTo), partialLine]
+              .where((l) => l.isNotEmpty)
+              .join('\n'));
+
     final payloads = <String>[];
-    for (final line in lines.sublist(0, lines.length - 1)) {
+    for (final line in complete.sublist(0, flushUpTo)) {
       final trimmed = line.trim();
       if (!trimmed.startsWith('data:')) continue;
       final payload = trimmed.substring(5).trim();

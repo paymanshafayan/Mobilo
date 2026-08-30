@@ -120,15 +120,16 @@ String? textAfterWakeWord(String text) {
     }
   }
   if (bestIndex == null || bestPattern == null) return null;
-  return text.substring(bestIndex + bestPattern.length);
+  return text.substring(bestIndex + bestPattern.length).trim();
 }
 
 /// Prepares an AI answer for text-to-speech: strips URLs/markdown, trims to
 /// a sentence boundary (TTS should not read 40 lines aloud).
 String ttsReadyText(String text) {
   var t = text
+      .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), r'$1') // [text](url) -> text
       .replaceAll(RegExp(r'https?://\S+'), ' ')
-      .replaceAll(RegExp(r'[*_`>#|]+'), ' ')
+      .replaceAll(RegExp(r'[\[\]()_*`>#|]+'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
   if (t.length > 450) {
