@@ -127,9 +127,10 @@ String? textAfterWakeWord(String text) {
 /// a sentence boundary (TTS should not read 40 lines aloud).
 String ttsReadyText(String text) {
   var t = text
-      // [text](url) -> text. Dart's replaceAll has no $1 back-references in
-      // replacement strings, so a callback captures group 1.
-      .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), (m) => m.group(1) ?? '')
+      // Markdown links [text](url) -> text: Dart's replaceAll only takes a
+      // literal String replacement (no \$1, no replace function), so drop
+      // the '](url)' tail here and let the bracket pass below eat '['.
+      .replaceAll(RegExp(r'\]\([^)]*\)'), '')
       .replaceAll(RegExp(r'https?://\S+'), ' ')
       .replaceAll(RegExp(r'[\[\]()_*`>#|]+'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
