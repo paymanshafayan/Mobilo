@@ -363,7 +363,8 @@ class _ModelSettingsScreenState extends State<ModelSettingsScreen> {
   Widget build(BuildContext context) {
     final settings = _settings;
     if (settings == null) {
-      return const Scaffold(
+      // AppBar has no const constructor, so this Scaffold cannot be const.
+      return Scaffold(
         appBar: AppBar(),
         body: Center(child: CircularProgressIndicator()),
       );
