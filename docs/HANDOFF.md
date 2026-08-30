@@ -137,9 +137,9 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 - **IPA:** `flutter build ipa --release` با certificate فعال.
 - **GitHub Actions:** workflow `.github/workflows/build-apk-ipa.yml` دو job دارد:
   - `build-apk` (ubuntu): خروجی `app-release.apk`
-  - `build-ipa` (macos): خروجی **IPA بدون امضا** + **xcarchive**
+  - `build-ipa` (macos): خروجی **بیلد release برای iOS Simulator** (اصلی و همیشه در دسترس — بدون هیچ حساب Apple) + **xcarchive/IPA بدون امضای دستگاه** (best-effort)
 
-  > ⚠️ نکتهٔ مهم (Flutter 3.47): `flutter build ipa --no-codesign` دیگر **IPA تولید نمی‌کند** (فقط xcarchive). به‌همین‌دلیل workflow مستقیماً `xcodebuild archive` + `xcodebuild -exportArchive` با `CODE_SIGNING_ALLOWED=NO` اجرا می‌کند — نیازی به Development Team ندارد. IPA خروجی **بدون امضا** است.
+  > ⚠️ نکتهٔ مهم (Flutter 3.47): (۱) `flutter build ipa --no-codesign` دیگر **IPA تولید نمی‌کند** (فقط xcarchive). (۲) مهم‌تر: `flutter build ios --no-codesign` برای **دستگاه** حتی با `--no-codesign` نیاز به **Development Team انتخاب‌شده** دارد (خودِ ابزار flutter این را بررسی می‌کند) و در CI که حساب Apple وجود ندارد می‌افتد. به‌همین‌دلیل workflow اول بیلد **simulator** می‌زند (اصلاً code-signing ندارد و کل target iOS در release کامپایل می‌شود) و بعد به‌صورت best-effort با `xcodebuild archive` + `CODE_SIGNING_ALLOWED=NO` آرشیو دستگاه بدون امضا می‌سازد.
 
 ### ساخت IPA امضادار (برای نصب روی دستگاه / اپ استور)
 
