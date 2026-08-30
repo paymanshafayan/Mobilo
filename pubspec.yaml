@@ -1,0 +1,66 @@
+name: mobilo
+description: "Mobilo - battery guardian app: live battery level, low-battery (15%) and full-charge (95%) alerts, 24/7 background monitoring on Android."
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`.
+publish_to: 'none'
+
+# Version and build number for your application.
+# In Android, build-name is used as versionName while build-number as versionCode.
+# In iOS, build-name is CFBundleShortVersionString and build-number is CFBundleVersion.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Battery level + charging state (both platforms, works in foreground).
+  # Pinned exactly: the Dart code is written against this API
+  # (no level stream, non-nullable batteryLevel, connectedNotCharging state).
+  # 7.x is required for AGP 9+ builds: it no longer applies the Kotlin Gradle
+  # Plugin on AGP 9 (Built-in Kotlin ready). Dart API is identical to 6.2.x.
+  battery_plus: 7.1.1
+
+  # Local notifications for the low/full battery alerts
+  # (also provides the runtime notification permission request on Android 13+).
+  flutter_local_notifications: ^18.0.1
+
+  # Cupertino Icons font (iOS style icons).
+  cupertino_icons: ^1.0.8
+
+  # ------------------------------------------------------------------
+  # AI assistant (chat + web search + file downloads)
+  # All pinned exactly: the code is written against these APIs.
+  # ------------------------------------------------------------------
+
+  # Voice input (device speech recognition, Android + iOS).
+  speech_to_text: 7.4.0
+
+  # Voice output (reads AI replies aloud).
+  flutter_tts: 4.2.5
+
+  # Persist AI settings (providers, models, toggles) on device.
+  shared_preferences: 2.5.5
+
+  # Where downloaded files are saved.
+  path_provider: 2.1.6
+
+  # Share/open downloaded files via the system share sheet.
+  share_plus: 13.3.0
+
+  # Open citation links in the browser.
+  url_launcher: 6.3.2
+
+  # Contacts for Mobina's voice commands ("مبینا شماره مامان را بگیر").
+  flutter_contacts: 2.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
