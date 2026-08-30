@@ -46,7 +46,7 @@ Mobilo حداکثر ممکن را انجام می‌دهد:
 ## 📱 ساخت و اجرای پروژه
 
 ### پیش‌نیازها
-- Flutter SDK (canal stable — این پروژه با Flutter 3.47+ ساخته شده)
+- Flutter SDK (کانال stable — این پروژه با Flutter 3.47+ ساخته شده)
 - Android Studio یا Xcode (برای بیلد هر پلتفرم)
 
 ### نصب وابستگی‌ها
@@ -82,27 +82,41 @@ flutter build ipa --release
 
 ```
 lib/
-  main.dart                        # شروع اپ، اجازه‌ها، راه‌اندازی سرویس
+  main.dart                        # شروع اپ، اجازه‌ها، راه‌اندازی سرویس باتری + مبینا
   app.dart                         # MaterialApp (تم تیره + RTL فارسی)
   core/fa.dart                     # اعداد فارسی + رشته‌های UI
+  core/ai_settings.dart            # تنظیمات AI: پرووایدرها، مدل‌ها، بخش‌ها (ذخیره لوکال)
   services/
     battery_service.dart           # خواندن زنده باتری (battery_plus)
     guard_channel.dart             # پلی به سرویس بومی اندروید (Method/EventChannel)
-    alert_service.dart             # منطق آستانه ۱۵٪/۹۵٪ و اعلان‌ها (iOS)
+    alert_service.dart             # منطق آستانه ۱۵٪/۹۵٪ و اعلان‌ها (iOS + Dart)
+    ai_client.dart                 # کلاینت OpenAI-compatible: chatStream (SSE) + complete + جستجو
+    download_service.dart          # دانلود فایل از URL (با درصد) + اشتراک‌گذاری
+    contacts_service.dart          # مخاطبین (flutter_contacts v2): جستجوی مبهم فارسی + شماره‌گیری
+    voice_assistant.dart           # مبینا: حلقهٔ wake word، اجرای دستورات، گفتگوی زنده، TTS
   ui/
     home_screen.dart               # صفحه اصلی: گیج، وضعیت، کارت‌ها
     battery_gauge.dart             # حلقه‌ی پیشرفت دایره‌ای (CustomPainter)
     about_sheet.dart               # برگه‌ی «چگونه کار می‌کند؟»
+    chat_screen.dart               # چت AI: استریم، وویس، TTS، لینک‌ها، چیپ‌های دانلود
+    settings_screen.dart           # تنظیمات + صفحهٔ انتخاب مدل + کارت مبینا
+    voice_chat_sheet.dart          # برگهٔ گفتگوی زندهٔ صوتی مبینا
 
 android/app/src/main/kotlin/...
-  MainActivity.kt                  # کانال‌های Method + Event
+  MainActivity.kt                  # کانال‌های Method/Event باتری + تحویل فرمان‌های مبینا به Dart
   BatteryGuardService.kt           # سرویس پیش‌زمینه‌ی ۲۴ ساعته (پایش + اعلان)
   BatteryGuardBootReceiver.kt      # راه‌اندازی مجدد بعد از ری‌بوت
   BatteryGuardWatchdog.kt          # آلارم خودشنی که سرویس را در صورت توقف سیستم مجدداً راه‌اندازی می‌کند
+  VoiceAssistantService.kt         # سرویس پیش‌زمینه‌ی میکروفون: wake word «مبینا» + فرستادن دستور به Dart
 
 ios/Runner/
   AppDelegate.swift                # اعلان‌های محلی + پایش گاه‌به‌گاه پس‌زمینه
-  Info.plist                       # UIBackgroundModes: fetch
+  Info.plist                       # UIBackgroundModes: fetch + مجوزهای میکروفون و مخاطبین
+
+test/
+  battery_test.dart                # اعداد فارسی + Snapshot باتری
+  ai_client_test.dart              # SseLineParser، deltaContent، استخراج URL فایل‌ها
+  voice_assistant_test.dart        # wake word، TTS-text، MobinaIntent، جستجوی مخاطبین
 ```
 
 ### منطق آستانه‌ها (state machine)
@@ -154,10 +168,20 @@ ios/Runner/
 ## ⚙️ شخصی‌سازی
 
 - هوش مصنوعی: پرووایدها، مدل‌ها و کلیدها در صفحهٔ **تنظیمات > مدل** (ذخیره فقط روی دستگاه).
-
-- آستانه‌ها: در `lib/core/fa.dart`? نه — در `AlertService` (`lowThreshold`/`fullThreshold`) و در `BatteryGuardService.kt` (ثابت‌های `LOW_THRESHOLD`/`FULL_THRESHOLD`) قرار دارند.
+- آستانه‌ها: در `AlertService` (`lowThreshold`/`fullThreshold`)، `BatteryGuardService.kt` (ثابت‌های `LOW_THRESHOLD`/`FULL_THRESHOLD`) و معادل آن در `AppDelegate.swift` — **وقتی عوض می‌کنی هر سه لایه را با هم بروزرسانی کن**.
 - رنگ آیکون و نام: `res/values/styles.xml`، `AndroidManifest.xml` و `Info.plist`.
 - آیکون اپ: فایل‌های `mipmap-*/ic_launcher.png` (اندروید) و `Assets.xcassets/AppIcon.appiconset` (iOS).
+
+## 🤖 CI (GitHub Actions)
+
+Workflow `.github/workflows/build-apk-ipa.yml` (به‌صورت جداگانه توسط مالک ریپو نگهداری می‌شود) روی هر push به `main` و شاخه‌های `arena/**` اجرا می‌شود:
+
+| Job | Runner | خروجی |
+|---|---|---|
+| `build-apk` | ubuntu | `app-release.apk` (با debug key امضا؛ `GROQ_API_KEY` از secret ریپو داخل build تزریق می‌شود) |
+| `build-ipa` | macos | **xcarchive بدون امضای دستگاه** (Release، همیشه) + **IPA بدون امضا** (best-effort) |
+
+> دلیل اینکه job iOS مستقیماً `xcodebuild archive` می‌زند (نه `flutter build ios`) در بخش ۶ `docs/HANDOFF.md` مستند شده است — خلاصه: CI حساب اپل ندارد و ابزار Flutter برای بیلد دستگاه Development Team می‌خواهد.
 
 ## 📄 لایسنس
 

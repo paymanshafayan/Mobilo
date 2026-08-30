@@ -1,12 +1,56 @@
-# سند هندآف — Mobilo (نگهبان باتری)
+# سند هندآف — Mobilo (نگهبان باتری + دستیار مبینا)
 
-این سند برای **تحویل پروژه به توسعه‌دهندهٔ بعدی** نوشته شده است. با خواندن این فایل، باید بتوانی بدون کمک کسی پروژه را build، debug، شخصی‌سازی و توسعه بدهی.
+این سند برای **تحویل پروژه به توسعه‌دهندهٔ بعدی** (یا یک سشن/چت جدید) نوشته شده است. با خواندن این فایل، باید بتوانی بدون کمک کسی پروژه را build، debug، شخصی‌سازی و توسعه بدهی.
+
+---
+
+## ۰. وضعیت فعلی (اولین چیزی که باید بخوانی)
+
+**آخرین به‌روزرسانی: ۲۰۲۶-۰۸-۳۰ — هر دو job CI سبز است.**
+
+- اپ Flutter (Android + iOS) با سه بخش: **نگهبان باتری** (هشدار ۱۵٪/۹۵٪ با تکرار ۲ دقیقه‌ای)، **دستیار AI** (چت/جستجوی وب/دانلود با Groq یا هر OpenAI-compatible)، و **مبینا** (گفتگوی زندهٔ صوتی + wake word دائمی + دستورات واقعی مثل «شماره مامان را بگیر»).
+- بَرچ کار: `arena/01a04e34-mobilo` (PR شمارهٔ ۱ روی `paymanshafayan/Mobilo`)؛ در تاریخ بالا به `main` merge شد.
+- CI (`.github/workflows/build-apk-ipa.yml`): `flutter test` (۲۶ تست) + build **APK release** + آرشیو **iOS Release بدون امضا** — هر دو سبز با آرتیفکت.
+
+### ⚖️ قوانین دائمی کاربر (حتماً رعایت کن)
+
+1. **قبل از هر کاری، تحقیق و بررسی روی وب:** APIها و راه‌کارها را فقط از حافظه ندان؛ آخرین مستندات رسمی و سورس نسخهٔ دقیق پلاگین را چک کن (بخش «دام‌ها» پایین پر از نمونه است — همه از تجربهٔ Runهای قرمز CI به‌دست آمدند).
+2. **فایل workflow مالِ کاربر است:** هرگز `.github/workflows/*` را create/commit/push نکن (GitHub App اجازهٔ `workflows` ندارد → خطای «refusing to allow a GitHub App to create or update workflow»). نسخهٔ کامل YAML فقط در چت داده می‌شود و کاربر خودش اعمال می‌کند. این فایل در `.git/info/exclude` هم هست؛ اگر محلی تغییر کرد، از remote برگردان.
+3. **پاسخ نهایی به فارسی** (اصطلاحات فنی انگلیسی آزاد است).
+4. **بعد از هر کار تمام‌شده: commit + push** روی بَرچ سشن.
+5. **اگر `git`/`gh` خطای احراز هویت داد** (مثلاً «GH_TOKEN is no longer valid»): از کاربر بخواه GitHub را در Arena reconnect کند؛ خودت دنبال توکن نگرد.
+
+### ⚠️ نکته‌های محیطی سشن (سنباکس Arena)
+
+- `/tmp` بین سشن‌ها **پاک می‌شود** (venvهای Python و اسکریپت‌های کمکی بازمی‌سازند: `python3 -m venv /tmp/tsenv2 && pip install tree-sitter tree-sitter-dart tree-sitter-kotlin`).
+- ریپوی لوکال گاهی بین سشن‌ها **ریست** می‌شود (تاریخچه تا Initial commit). پیش از هر کار: `git fetch origin` و `git log --oneline -3` را چک کن؛ اگر بَرچ remote جلو رفته، کار جدید را **روی FETCH_HEAD** بساز (rebase) نه روی وضعیت قدیمی.
+- `flutter` در سنباکس نصب نیست و دانلود SDK بلاک است — **کامپایل محلی Dart/Flutter ممکن نیست**. تکیه کن روی: (الف) CI به‌عنوان build truth، (ب) tree-sitter syntax check، (ج) شبیه‌سازی منطق با Python (مراقب تفاوت‌های semantics بین Dart و Python باش — همین‌جا چند بار جا خوردیم).
+
+### 🗺️ داستان CI (چرا این‌همه کامیت fix داریم)
+
+| فاز | چه گذشت |
+|---|---|
+| Battery app | CI سبز شد (هر دو job + ۳ آرتیفکت) |
+| AI assistant | CI سبز شد |
+| Mobina (پوش) | ۵ خطای compile در `flutter test` (API پلاگین‌ها) → fix شد |
+| Mobina | ۴ تست runtime شکسته (SSE، wake word، TTS) → fix شد |
+| Mobina | خطای `replaceAll` Dart (نه back-reference، نه تابع — فقط literal) → fix شد |
+| build کامل | ۲ خطای UI Dart که `flutter test` هرگز ندیده بود (فایل‌های UI توسط هیچ تستی import نمی‌شوند) → fix شد |
+| iOS | درک صحیح: دستگاه بدون Team نمی‌شود + Release شبیه‌ساز نیست → workflow روی `xcodebuild archive` مستقیم |
+| build کامل | ۴ خطای Kotlin در `VoiceAssistantService.kt` (اولین کامپایل واقعی) → fix شد |
+| **حاضر** | **هر دو job سبز ✅** |
+
+### 🚀 قدم‌های بعدی پیشنهادی (برای سشن جدید)
+
+1. **تست دستگاهی مبینا** (تنها ریسک باقی‌مانده): FGS + `SpeechRecognizer` روی ۲-۳ گوشی واقعی (OEMهای مختلف) — رفتار wake word، کشتن FGS توسط battery saver، و مسیر fallback.
+2. آیتم‌های بخش ۷ (TODO) به ترتیب اولویت.
+3. اگر Flutter تازه‌تر گرفت: هشدار KGP (`flutter_tts`/`speech_to_text` در نسخه‌های آینده باید Built-in Kotlin را support کنند) را چک کن.
 
 ---
 
 ## ۱. خلاصهٔ یک‌خطی
 
-اپ Flutter (Android + iOS) که باتری را ۲۴ ساعته پایش می‌کند؛ در ۱۵٪ هشدار «به شارژ وصل کن» و در ۹۵٪ هشدار «شارژر را جدا کن» می‌دهد؛ هر هشدار **هر ۲ دقیقه تکرار** می‌شود تا کاربر **دکمهٔ دایره‌ای «انصراف» وسط صفحه** (یا اکشن «اسکیپ اعلان» روی نوتیفیکیشن) را بزند.
+اپ Flutter (Android + iOS) با سه بخش: **(الف) نگهبان باتری** — ۲۴ ساعته پایش؛ در ۱۵٪ هشدار «به شارژ وصل کن» و در ۹۵٪ «شارژر را جدا کن»؛ هر هشدار **هر ۲ دقیقه تکرار** می‌شود تا کاربر **دکمهٔ دایره‌ای «انصراف» وسط صفحه** (یا اکشن «اسکیپ اعلان») را بزند. **(ب) دستیار AI** — چت با متن و صدا (streaming)، جستجوی وب با cite، دانلود فایل؛ پیش‌فرض Groq. **(ج) مبینا** — گفتگوی زندهٔ صوتی (مثل Gemini/ChatGPT) با wake word دائمی «مبینا» (در اندروید حتی با اپ بسته) و اجرای دستورات واقعی (شماره‌گیری مخاطب، جستجو، دانلود).
 
 ## ۲. شروع سریع (Environment)
 
@@ -125,8 +169,12 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
    adb shell dumpsys battery set status 5     # unplugged
    ```
 
-### تست‌های خودکار
-`test/battery_test.dart` — تبدیل اعداد فارسی + رفتار `BatterySnapshot`. اجرای سریع، بدون device.
+### تست‌های خودکار (۲۶ تست، بدون device)
+- `test/battery_test.dart` — تبدیل اعداد فارسی + رفتار `BatterySnapshot`.
+- `test/ai_client_test.dart` — `SseLineParser` (semantics رویداد SSE با خط خالی؛ chunkها ممکن است هرجایی شکسته شوند)، `AiClient.deltaContent`، `extractFileUrls`، `fileNameFromUrl`.
+- `test/voice_assistant_test.dart` — `textAfterWakeWord` (فارسی + لاتین)، `ttsReadyText` (پاک‌کردن markdown/URL + truncation)، `MobinaIntent.parse` (JSON تمیز / داخل chatter / garbage→chat)، `faDigits`، تطبیق نام مخاطبین (normalization ی/یه، contains).
+
+> ⚠️ `flutter test` فقط فایل‌هایی را کامپایل می‌کند که تست‌ها import می‌کنند — **فایل‌های UI (`lib/ui/*`) توسط هیچ تستی import نمی‌شوند** و اولین باری که کامپایل می‌شوند، مرحلهٔ build است. (این دقیقاً جایی بود که دو خطای UI در CI کشف شد.)
 
 ## ۶. ریلیز و دیپلوی
 
@@ -183,15 +231,17 @@ flutter build ipa --release        # خروجی: build/ios/ipa/Runner.ipa
           if-no-files-found: error
 ```
 
-## ۷. TODO / ایده‌های بعدی (به ترتیح اولویت)
+## ۷. TODO / ایده‌های بعدی (به ترتیب اولویت)
 
-1. **تنظیم آستانه‌ها از UI** (slider) + ذخیره در `shared_preferences`/`secure_storage` — الان ثابت است.
-2. **آمار:** تاریخچهٔ شارژ/مصرف + تخمین زمان تا خالی‌شدن (BatteryManager APIهای Android).
-3. **APNs push برای iOS** — اگر بخواهیم تکرار دقیق ۲ دقیقه‌ای در background iOS داشته باشیم، فقط با سرور ممکن است (push scheduled).
-4. **آیکون اختصاصی** (الان آیکون پیش‌فرض Flutter است).
+1. **تست دستگاهی مبینا** — wake word روی OEMهای مختلف، فاصلهٔ کشتن FGS توسط battery savers، کیفیت `SpeechRecognizer` فارسی، و مسیر fallback به حلقهٔ Dart. (تنها ریسک بی‌تستِ باقی‌مانده.)
+2. **تنظیم آستانه‌ها از UI** (slider) + ذخیره در `shared_preferences`/`secure_storage` — الان ثابت است.
+3. **آمار:** تاریخچهٔ شارژ/مصرف + تخمین زمان تا خالی‌شدن (BatteryManager APIهای Android).
+4. **APNs push برای iOS** — اگر بخواهیم تکرار دقیق ۲ دقیقه‌ای در background iOS داشته باشیم، فقط با سرور ممکن است (push scheduled).
 5. **Light/Dark theme** — فعلاً فقط تیره.
 6. **چندزبانه‌سازی** (الان فقط فارسی، با `intl`) اگر بازار هدف گسترش یابد.
 7. **Widget صفحهٔ اصلی** (Android home screen / iOS widget) برای دیدن درصد بدون باز کردن اپ.
+
+> ✅ انجام‌شده در مسیر: آیکون اختصاصی اپ (هر دو پلتفرم)، کل دستیار AI + مبینا، CI سبز هر دو job.
 
 ## ۸. سؤالات پرتکرار
 
@@ -207,6 +257,29 @@ flutter build ipa --release        # خروجی: build/ios/ipa/Runner.ipa
 **Q: Bundle ID / applicationId؟**
 هر دو: `com.mobilo.mobilo`. برای ریلیز واقعی عوض کن (ساختار بالا را ببین).
 
+## ۸.۵ دام‌های دور‌شده (درس‌های Runهای قرمز CI — حتماً بخوان)
+
+همهٔ این‌ها با «دانش عمومی» رد نمی‌شدند؛ هرکدام با تحقیق روی مستندات/سورس رسمی حل شد:
+
+| دام | حقیقت |
+|---|---|
+| `speech_to_text` 7.4.0: پارامتر `listen()` | `listenOptions:` است (نه `config` — در 7.5.0-beta تغییر کرده). **همیشه API را از سورس همان نسخهٔ پین‌شده بخوان** (شاهخ repo ممکن است جلوتر از نسخهٔ منتشرشده باشد)؛ release-commit نسخه را با `api.github.com/repos/<owner>/<repo>/commits?path=<pkg>/pubspec.yaml` پیدا کن |
+| `SpeechRecognitionResult` | از کتابخانهٔ اصلی speech_to_text re-export نمی‌شود → `package:speech_to_text/speech_recognition_result.dart` + تایپ ساده (بدون پیشوند namespace) |
+| `MethodChannel.setMethodCallHandler` و `Socket.destroy()` | هر دو `void` برمی‌گردانند — **`await` روی آن‌ها خطای کامپایل است** |
+| `String.replaceAll` در Dart | **نه back-reference (`$1`) پشتیبانی می‌کند و نه overload تابعی** — فقط replacement literal. برای گروه‌بندی یا حذف، با چند replace literal زنجیره‌ای کار را بکن |
+| `AppBar` | **constructor ثابت (const) ندارد** — `const Scaffold(appBar: AppBar())` هرگز کامپایل نمی‌شود |
+| `TapGestureRecognizer` | از `flutter/material.dart` نمی‌آید — `import 'package:flutter/gestures.dart'` لازم است |
+| Kotlin: `SpeechRecognizer` | متد `startListening(Intent)` است؛ `listen()` نام API پلاگین Dart است (با هم قاطی نشود) |
+| Kotlin: `isNotEmpty` | **فانکشن** است: `s.isNotEmpty()` (نه `s.isNotEmpty`) |
+| Kotlin: سکوت اعلان با `Notification.Builder` | `setSilent` فقط روی `NotificationCompat` (androidx) است؛ در فریمورک: `setSound(null)` |
+| `Notification.CATEGORY_VOICE` | **وجود ندارد** (لیست رسمی: ALERT, CALL, EMAIL, ERROR, EVENT, LOCATION_SHARING, MESSAGE, MISSED_CALL, NAVIGATION, PROGRESS, PROMO, RECOMMENDATION, REMINDER, SERVICE, SOCIAL, STATUS, STOPWATCH, SYSTEM, TRANSPORT, VOICEMAIL, WORKOUT) |
+| CI بدون حساب اپل: بیلد iOS | `flutter build ios/ipa --no-codesign` برای **دستگاه** حتی با `--no-codesign` Development Team می‌خواهد؛ **Release شبیه‌ساز اصلاً نیست** («Release mode is not supported for simulators»). راه درست: `pod install` + `xcodebuild archive -configuration Release -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO` (فازهای Flutter داخل xcodebuild همان‌طور اجرا می‌شوند) |
+| `flutter test` ≠ build | فقط فایل‌های import‌شده توسط تست‌ها را کامپایل می‌کند؛ فایل‌های UI را build برای اولین بار می‌بیند. بنابراین سبز بودن تست یعنی build هم سبز نیست! |
+| `flutter build ipa --no-codesign` در 3.47 | IPA تولید **نمی‌کند** (فقط xcarchive) — برای IPA از `xcodebuild -exportArchive` |
+| بَرچ لوکال بین سشن‌ها | ممکن است ریست شده باشد — همیشه قبل از commit/push: `git fetch` + مقایسه با remote؛ در صورت دایورژ، rebase روی remote (فقط بعد از اطمینان که محتوای لوکال ⊇ remote) |
+| شبیه‌سازی منطق با Python | semantics متفاوت است! (مثلاً `re.sub` در Python back-reference دارد ولی `replaceAll` Dart نه). شبیه‌سازی را دقیقاً با همان semantics زبانی هدف بنویس |
+| احراز هویت GitHub | GH_TOKEN می‌تواند وسط سشن expire کند → از کاربر بخواه reconnect کند (قانون ۵) |
+
 ## ۹. خلاصهٔ ریسک‌ها
 
 | ریسک | Severity | تمیز |
@@ -216,7 +289,7 @@ flutter build ipa --release        # خروجی: build/ios/ipa/Runner.ipa
 | بسته شدن سرویس توسط OEM battery savers | متوسط | watchdog + دکمهٔ شروع در UI |
 | `flutter_local_notifications` desugaring می‌خواهد | رفع‌شده | `isCoreLibraryDesugaringEnabled = true` + `coreLibraryDesugaring(desugar_jdk_libs)` در `android/app/build.gradle.kts` — اگر AGP نسخهٔ بالاتر خواست، فقط عدد نسخهٔ desugar_jdk_libs را بالا ببر |
 | `flutter_local_notifications` SPM ندارد | کم (فعلاً فقط WARNING) | در 3.47 build فقط هشدار می‌دهد و آن پلاگین با CocoaPods build می‌شود؛ در نسخه‌های آیندهٔ Flutter خطای سفت می‌شود — باید منتظر آپدیت پلاگین بمانیم
-| VoiceAssistantService (Kotlin، SpeechRecognizer در FGS) | متوسط | روی OEMهای ضعیف‌تر شناسا ممکن است نداشتن → fallback خودکار به حلقهٔ Dart (status ok=false). تست دستگاهی حتماً
+| VoiceAssistantService (Kotlin، SpeechRecognizer در FGS) | متوسط | **کامپایل در CI تأیید شده** (۴ خطای API در ۲۰۲۶-۰۸-۳۰ fix شد — جزئیات در بخش ۸.۵). باقی‌مانده: رفتار دستگاهی — روی OEMهای ضعیف‌تر شناسا ممکن است نداشتن → fallback خودکار به حلقهٔ Dart (status ok=false). تست دستگاهی حتماً
 | flutter_contacts 2.3.1 (API v2) | کم | دقیقاً pin؛ کد با API `FlutterContacts.*` نسخهٔ 2.x نوشته شده (نسخهٔ 1.x کلاس `Contacts` دارد — مختلط نکن)
 | بسته‌های AI (speech_to_text, flutter_tts, share_plus, url_launcher, path_provider, shared_preferences) | کم | همه دقیقاً pin شده‌اند و با API این نسخه‌ها نوشته شده‌اند؛ در جدول ۳ راهنمای pin/آپدیت مثل battery_plus صادق است
 | تغییر آیکون‌ها در نسخه‌های Flutter | کم | `Icons.battery_horiz` در 3.47 حذف شده و با `battery_std` جایگزین شد؛ اگر خطای `Member not found: Icons.x` دیدی، `packages/flutter/lib/src/material/icons.dart` در Flutter خودت را چک کن |
