@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 import '../core/fa.dart';
 import 'battery_service.dart';
@@ -35,6 +36,9 @@ class AlertService {
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+
+  /// Lazy [FlutterTts] used to announce alerts aloud on iOS.
+  FlutterTts? _tts;
 
   StreamSubscription<BatterySnapshot>? _subscription;
   Timer? _repeatTimer;
@@ -172,6 +176,37 @@ class AlertService {
         : '${Strings.fullBatteryBody(level)} '
             '(تا فشردن «انصراف»، هر ۲ دقیقه تکرار می‌شود)';
     showNotification(id, title, body);
+    unawaited(_speakAlert(kind, level));
+  }
+
+  /// Speaks the alert aloud (iOS foreground only).
+  ///
+  /// On Android the native foreground service owns every alert session and
+  /// speaks through the platform TTS itself, so it works even with the app
+  /// closed (see `BatteryGuardService.kt`); the Dart loop is not involved
+  /// there to avoid a double announcement.
+  Future<void> _speakAlert(String kind, int level) async {
+    if (!Platform.isIOS) {
+      return;
+    }
+    try {
+      _tts ??= await _createTts();
+      await _tts?.speak(alertSpeechText(kind, level));
+    } catch (_) {
+      // Voice is best effort - the notification is always shown.
+    }
+  }
+
+  Future<FlutterTts?> _createTts() async {
+    try {
+      final FlutterTts tts = FlutterTts();
+      await tts.setLanguage('fa-IR');
+      await tts.setSpeechRate(0.95);
+      await tts.setVolume(1.0);
+      return tts;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> showNotification(int id, String title, String body) async {

@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import UIKit
 import UserNotifications
@@ -7,6 +8,9 @@ import UserNotifications
   // Mirrors the Dart side (AlertService) and the Android service.
   private let lowThreshold = 15
   private let fullThreshold = 95
+
+  /// Speaks alerts aloud during background wakes (best effort, see docs).
+  private let speechSynthesizer = AVSpeechSynthesizer()
 
   override func application(
     _ application: UIApplication,
@@ -62,6 +66,10 @@ import UserNotifications
         title: "🔋 باتری شارژ کامل شد",
         body: "سطح باتری به \(fa(level))٪ رسید. برای حفظ عمر باتری، شارژر را جدا کنید."
       )
+      speak(
+        "هشدار! باتری شارژ کامل شد، سطح باتری \(fa(level)) درصد است. " +
+          "لطفاً شارژر را از برق جدا کنید."
+      )
       completionHandler(.newData)
       return
     }
@@ -71,10 +79,37 @@ import UserNotifications
         title: "⚠️ باتری رو به اتمام است",
         body: "سطح باتری به \(fa(level))٪ رسیده است. لطفاً گوشی را به شارژ وصل کنید."
       )
+      speak(
+        "هشدار! باتری رو به اتمام است، سطح باتری \(fa(level)) درصد است. " +
+          "لطفاً گوشی را به شارژ وصل کنید."
+      )
       completionHandler(.newData)
       return
     }
     completionHandler(.noData)
+  }
+
+  // MARK: - Voice announcements (best effort during background wakes)
+
+  /// Reads [text] aloud. The foreground half of the voice announcements is
+  /// handled by the Dart side (flutter_tts in AlertService); this covers the
+  /// opportunistic background wakes Apple grants via fetch.
+  private func speak(_ text: String) {
+    // .playback keeps the announcement audible while the device is quiet;
+    // ducking lowers any background music instead of mixing over it.
+    do {
+      try AVAudioSession.sharedInstance().setCategory(
+        .playback, mode: .spokenAudio, options: [.duckOthers])
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {
+      // Audio session setup is best effort.
+    }
+    let utterance = AVSpeechUtterance(string: text)
+    utterance.voice = AVSpeechSynthesisVoice(language: "fa-IR")
+    if speechSynthesizer.isSpeaking {
+      speechSynthesizer.stopSpeaking(at: .immediate)
+    }
+    speechSynthesizer.speak(utterance)
   }
 
   // MARK: - Helpers

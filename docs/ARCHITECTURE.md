@@ -51,7 +51,7 @@ Mobilo یک اپلیکیشن پایش باتری است که:
 | `lib/core/fa.dart` | تبدیل اعداد به فارسی (`faNum`) + تمام رشته‌های UI (`Strings`) |
 | `lib/services/battery_service.dart` | Singleton روی `battery_plus` **7.1.1**: استریم `onBatteryStateChanged` + پولینگ ۵ ثانیه‌ای سطح (در 6.2.x استریم level وجود ندارد) را به یک `Stream<BatterySnapshot>` broadcast تبدیل می‌کند |
 | `lib/services/guard_channel.dart` | پلی به کد بومی اندروید: `start/stop/isRunning/getActiveAlert/dismissAlert` + استریم رویدادها |
-| `lib/services/alert_service.dart` | state-machine جلسات هشدار در **iOS** (تکرار ۲ دقیقه‌ای با `Timer`) + `ValueNotifier<String?> activeAlert` برای UI |
+| `lib/services/alert_service.dart` | state-machine جلسات هشدار در **iOS** (تکرار ۲ دقیقه‌ای با `Timer`) + `ValueNotifier<String?> activeAlert` برای UI + **اعلام صوتی هشدارها با `flutter_tts`** |
 | `lib/ui/home_screen.dart` | صفحهٔ اصلی: گیج، کارت‌ها، کنترل نظارت، **overlay دکمهٔ انصراف** |
 | `lib/ui/battery_gauge.dart` | `CustomPainter` حلقهٔ درصد |
 | `lib/ui/about_sheet.dart` | برگهٔ توضیح رفتار و محدودیت‌ها |
@@ -69,7 +69,7 @@ Mobilo یک اپلیکیشن پایش باتری است که:
 | فایل | مسئولیت |
 |---|---|
 | `MainActivity.kt` | ثبت MethodChannel (`mobilo/battery_guard`) و EventChannel (`mobilo/battery_guard/events`) |
-| `BatteryGuardService.kt` | **قلب سیستم**: Foreground Service با نوتیفیکیشن دائمی؛ poll ۳۰ ثانیه‌ای + receiver روی `POWER_CONNECTED/DISCONNECTED`؛ state-machine هشدارها؛ تکرار ۲ دقیقه‌ای؛ ساخت/به‌روزرسانی همهٔ نوتیفیکیشن‌ها |
+| `BatteryGuardService.kt` | **قلب سیستم**: Foreground Service با نوتیفیکیشن دائمی؛ poll ۳۰ ثانیه‌ای + receiver روی `POWER_CONNECTED/DISCONNECTED`؛ state-machine هشدارها؛ تکرار ۲ دقیقه‌ای؛ ساخت/به‌روزرسانی همهٔ نوتیفیکیشن‌ها؛ **اعلام صوتی هشدارها با TextToSpeech فارسی (حتی با اپ بسته)** |
 | `BatteryGuardBootReceiver.kt` | ری‌استارت سرویس بعد از `BOOT_COMPLETED` |
 | `BatteryGuardWatchdog.kt` | آلارم inexact تکرارشونده (هر ۳۰ دقیقه): اگر سیستم سرویس را بسته باشد (مثل محدودیت ۶ ساعتهٔ Android 16 یا Doze) دوباره روشن می‌کند |
 | `VoiceAssistantService.kt` | سرویس پیش‌زمینه (microphone FGS): گوش‌دادن دائمی به «مبینا» با SpeechRecognizer؛ هنگام بیداری، دستور (متن بعد از wake word) را از کانال `mobilo/voice_assistant` به Dart می‌فرستد و اپ را باز می‌کند |

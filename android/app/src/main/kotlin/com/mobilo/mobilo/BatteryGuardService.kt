@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.RingtoneManager
@@ -19,10 +20,12 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.speech.tts.TextToSpeech
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.EventChannel
 import java.util.HashMap
+import java.util.Locale
 
 /**
  * 24/7 battery guardian.
@@ -113,6 +116,17 @@ class BatteryGuardService : Service() {
     private var lastLevel: Int = -1
     private var lastCharging = false
 
+    /** Platform TTS engine used to announce alerts aloud. */
+    @Volatile
+    private var tts: TextToSpeech? = null
+    @Volatile
+    private var ttsReady = false
+
+    override fun onCreate() {
+        super.onCreate()
+        initTts()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -173,7 +187,71 @@ class BatteryGuardService : Service() {
         }
         pollThread?.interrupt()
         withNotificationManager().cancel(SERVICE_NOTIFICATION_ID)
+        tts?.shutdown()
+        tts = null
+        ttsReady = false
         super.onDestroy()
+    }
+
+    // ------------------------------------------------------------------
+    // Text-to-speech announcements (spoken in addition to notifications)
+    // ------------------------------------------------------------------
+
+    /** Initializes the platform TTS engine for Persian announcements. */
+    private fun initTts() {
+        if (!isTtsEnginePresent()) return
+        val engine = TextToSpeech(applicationContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                // fa-IR first, then plain fa; some engines only register
+                // the language without a region - never give up on the
+                // announcement because of a missing region.
+                var lang = engine.setLanguage(Locale.forLanguageTag("fa-IR"))
+                if (lang == TextToSpeech.LANG_MISSING_DATA ||
+                    lang == TextToSpeech.LANG_NOT_SUPPORTED
+                ) {
+                    lang = engine.setLanguage(Locale("fa"))
+                }
+                ttsReady = lang != TextToSpeech.LANG_MISSING_DATA &&
+                    lang != TextToSpeech.LANG_NOT_SUPPORTED
+                // Alarm usage: the announcement is audible even in
+                // silent / Do-Not-Disturb situations (respects alarm volume).
+                engine.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+            } else {
+                ttsReady = false
+            }
+        }
+        tts = engine
+    }
+
+    private fun isTtsEnginePresent(): Boolean = try {
+        packageManager.resolveActivity(
+            Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE),
+            PackageManager.MATCH_DEFAULT_ONLY
+        ) != null
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
+     * Speaks [text] on the main thread. Any previous announcement is
+     * replaced (QUEUE_FLUSH) so repeats never stack up.
+     */
+    private fun speakAlert(text: String) {
+        if (!ttsReady) return
+        val engine = tts ?: return
+        val utteranceId = "mobilo_alert_${SystemClock.elapsedRealtime()}"
+        mainHandler.post {
+            try {
+                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+            } catch (e: Exception) {
+                // Never let a TTS failure kill the guardian.
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -378,6 +456,10 @@ class BatteryGuardService : Service() {
             .addAction(R.drawable.ic_stat_battery, "اسکیپ اعلان", dismissAlertIntent())
             .build()
         withNotificationManager().notify(LOW_BATTERY_NOTIFICATION_ID, notification)
+        speakAlert(
+            "هشدار! باتری رو به اتمام است، سطح باتری ${fa(level)} درصد است. " +
+                "لطفاً گوشی را به شارژ وصل کنید."
+        )
     }
 
     private fun showFullAlert(level: Int) {
@@ -397,6 +479,10 @@ class BatteryGuardService : Service() {
             .addAction(R.drawable.ic_stat_battery, "اسکیپ اعلان", dismissAlertIntent())
             .build()
         withNotificationManager().notify(FULL_BATTERY_NOTIFICATION_ID, notification)
+        speakAlert(
+            "هشدار! باتری شارژ کامل شد، سطح باتری ${fa(level)} درصد است. " +
+                "لطفاً شارژر را از برق جدا کنید."
+        )
     }
 
     // ------------------------------------------------------------------
