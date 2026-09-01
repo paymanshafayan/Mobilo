@@ -34,6 +34,23 @@ String faDigits(String value) {
       .join();
 }
 
+/// The short text spoken aloud when a battery alert fires (`low` or `full`).
+///
+/// Kept compact for TTS (no repetition hint) and written with Persian digits
+/// so a Persian speech engine reads the level naturally. It is spoken in
+/// addition to the notification by:
+///  * Android - the native `BatteryGuardService` (works with the app closed),
+///  * iOS - `AlertService` in the foreground and `AppDelegate` on background
+///    wakes (best effort).
+String alertSpeechText(String kind, int level) {
+  if (kind == 'full') {
+    return 'هشدار! باتری شارژ کامل شد، سطح باتری ${faNum(level)} درصد است. '
+        'لطفاً شارژر را از برق جدا کنید.';
+  }
+  return 'هشدار! باتری رو به اتمام است، سطح باتری ${faNum(level)} درصد است. '
+      'لطفاً گوشی را به شارژ وصل کنید.';
+}
+
 /// All user-visible strings (Persian).
 class Strings {
   Strings._();

@@ -32,11 +32,35 @@ android {
         versionName = flutter.versionName
     }
 
+    // Stable sideload signing (android/app/mobilo-sideload.p12, committed).
+    // Keeps every CI release APK signed identically -> updates over an
+    // already-installed version succeed (the default debug key changes
+    // per CI runner and caused "App not installed" on update).
+    signingConfigs {
+        create("mobilo") {
+            storeFile = file("mobilo-sideload.p12")
+            storePassword = "mobilo-sideload-2026"
+            keyAlias = "mobilo"
+            keyPassword = "mobilo-sideload-2026"
+            storeType = "pkcs12"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Stable sideload signing key committed with the repo
+            // (android/app/mobilo-sideload.p12). The GitHub Actions runner
+            // regenerates a FRESH debug keystore on every run, so signing
+            // release APKs with the debug key produced a different signature
+            // per build: installing a new APK over an installed one failed
+            // with a generic "App not installed" (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+            // With one committed key every CI APK shares the same signature,
+            // so updates install cleanly (also on Android 9).
+            //
+            // This key is ONLY for sideloading. For an app-store release
+            // replace it with a private upload keystore + secrets
+            // (see docs/HANDOFF.md section 6).
+            signingConfig = signingConfigs.getByName("mobilo")
         }
     }
 }

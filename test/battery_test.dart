@@ -16,6 +16,24 @@ void main() {
     });
   });
 
+  group('alertSpeechText (voice announcements)', () {
+    test('low alert text contains the level in Persian digits', () {
+      final String text = alertSpeechText('low', 15);
+      expect(text, contains('۱۵'));
+      expect(text, contains('شارژ'));
+    });
+
+    test('full alert text contains the level in Persian digits', () {
+      final String text = alertSpeechText('full', 95);
+      expect(text, contains('۹۵'));
+      expect(text, contains('جدا'));
+    });
+
+    test('unknown kind falls back to the low-battery wording', () {
+      expect(alertSpeechText('unknown', 20), contains('هشدار'));
+    });
+  });
+
   group('BatterySnapshot', () {
     test('isCharging reflects the trend', () {
       expect(
