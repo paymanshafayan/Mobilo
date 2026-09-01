@@ -179,7 +179,7 @@ Workflow `.github/workflows/build-apk-ipa.yml` (به‌صورت جداگانه �
 
 | Job | Runner | خروجی |
 |---|---|---|
-| `build-apk` | ubuntu | `app-release.apk` (با debug key امضا؛ `GROQ_API_KEY` از secret ریپو داخل build تزریق می‌شود) |
+| `build-apk` | ubuntu | `app-release.apk` (با کلید stable کارتی `mobilo-sideload.p12` امضا می‌شود تا آپدیت روی گوشی‌های نصب‌شده، از جمله اندروید ۹، بدون خطای «App not installed» کار کند؛ `GROQ_API_KEY` از secret ریپو داخل build تزریق می‌شود) |
 | `build-ipa` | macos | **xcarchive بدون امضای دستگاه** (Release، همیشه) + **IPA بدون امضا** (best-effort) |
 
 > دلیل اینکه job iOS مستقیماً `xcodebuild archive` می‌زند (نه `flutter build ios`) در بخش ۶ `docs/HANDOFF.md` مستند شده است — خلاصه: CI حساب اپل ندارد و ابزار Flutter برای بیلد دستگاه Development Team می‌خواهد.

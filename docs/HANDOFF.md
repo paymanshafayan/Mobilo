@@ -179,7 +179,7 @@ flutter build ipa --release --no-codesign   # خروجی: build/ios/ipa/Runner.i
 ## ۶. ریلیز و دیپلوی
 
 - نسخه: `pubspec.yaml` (`version: 1.0.0+1`) — build-name + build-number.
-- **APK release** در حال حاضر با **debug key** امضا می‌شود (در `android/app/build.gradle.kts` کامنت TODO گذاشته شده). برای اپ استور:
+- **APK release** با کلید stable کارتی `android/app/mobilo-sideload.p12` (PKCS12، alias `mobilo`) امضا می‌شود — این کلید **همراه با ریپو کامیت شده** تا همه‌ی بیلدهای CI امضای یکسانی داشته باشند (قبلاً با debug key امضا می‌شد و چون هر runner CI یک debug keystore تازه با کلید تصادفی می‌سازد، نصب APK جدید روی نسخه‌ی نصب‌شده با خطای عمومی «App not installed» رد می‌شد — این دقیقاً مشکل اندروید ۹ کاربر بود). این کلید فقط برای sideload است؛ برای اپ استور:
   - key store بساز: `keytool -genkey -v -keystore ~/mobilo-upload.keystore -alias mobilo -keyalg RSA -keysize 2048 -validity 10000`
   - `android/key.properties` بساز (داخل .gitignore است) و بلوک `signingConfigs` در `build.gradle.kts` فعال کن.
 - **IPA:** `flutter build ipa --release` با certificate فعال.
